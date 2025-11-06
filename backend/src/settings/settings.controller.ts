@@ -18,6 +18,7 @@ import {
   UpdateTradingChannelsDto,
   UpdateCustomerServiceDto,
   UpdateLatencyDto,
+  UpdateShareConfigDto,
 } from './dto/update-settings.dto';
 
 @Controller('admin/settings')
@@ -159,6 +160,29 @@ export class SettingsController {
   async updateManagedMode(@Body() dto: { enabled: boolean }) {
     await this.settingsService.updateManagedMode(dto.enabled);
     return { message: '托管模式设置已更新' };
+  }
+
+  /**
+   * 获取分享内容设置
+   * GET /admin/settings/share/config
+   */
+  @Get('share/config')
+  @Roles('admin')
+  async getShareConfig() {
+    return {
+      data: await this.settingsService.getShareConfig(),
+    };
+  }
+
+  /**
+   * 更新分享内容设置
+   * PUT /admin/settings/share/config
+   */
+  @Put('share/config')
+  @Roles('admin')
+  async updateShareConfig(@Body() dto: UpdateShareConfigDto) {
+    await this.settingsService.updateShareConfig(dto);
+    return { message: '分享内容设置已更新' };
   }
 
   /**

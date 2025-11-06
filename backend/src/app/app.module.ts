@@ -24,6 +24,8 @@ import { TransactionLogModule } from '../transaction-log/transaction-log.module'
 import { SettingsModule } from '../settings/settings.module';
 import { CmsModule } from '../cms/cms.module';
 import { PublicCmsModule } from '../cms/public/public-cms.module';
+import { CustomMembersModule } from '../custom-members/custom-members.module';
+import { TradingManagementModule } from '../trading-management/trading-management.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -118,7 +120,9 @@ import { RolesGuard } from '../common/guards/roles.guard';
     MarketDataModule,
     MailModule,
     TransactionLogModule,
-    SettingsModule
+    SettingsModule,
+    CustomMembersModule,
+    TradingManagementModule
   ],
   controllers: [AppController],
   providers: [

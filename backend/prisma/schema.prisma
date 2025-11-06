@@ -50,11 +50,14 @@ model User {
   demoBalance        Decimal            @default(10000) @db.Decimal(18, 8)
   phoneNumber        String             @unique
   realBalance        Decimal            @default(0) @db.Decimal(18, 8)
+  isCustomMember     Boolean            @default(false) // 是否为自定义会员（后台创建）
+  createdBy          String?            // 创建者（管理员ID），仅自定义会员有值
   orders             Order[]
   sessions           Session[]
   transactionLogs    TransactionLog[]
 
   @@index([email])
+  @@index([isCustomMember])
 }
 
 model Session {
@@ -113,35 +116,39 @@ model MarketSnapshot {
 }
 
 model TransactionLog {
-  id           String            @id @default(uuid())
-  userId       String
-  userName     String?           // 用户名（冗余字段，方便查询）
-  orderNumber  String            @unique
-  assetType    String
-  direction    TradeDirection
-  entryTime    DateTime
-  expiryTime   DateTime
-  duration     Int
-  entryPrice   Decimal           @db.Decimal(18, 8)
-  currentPrice Decimal?          @db.Decimal(18, 8)
-  exitPrice    Decimal?          @db.Decimal(18, 8)
-  spread       Decimal           @db.Decimal(18, 8)
-  investAmount Decimal           @db.Decimal(18, 8)
-  returnRate   Decimal           @db.Decimal(7, 4)
-  actualReturn Decimal           @db.Decimal(18, 8)
-  status       TransactionStatus @default(PENDING)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  settledAt    DateTime?
-  accountType  AccountType       @default(DEMO)
-  isManaged    Boolean           @default(false) // 是否在托管状态下产生的交易
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String            @id @default(uuid())
+  userId         String
+  userName       String?           // 用户名（冗余字段，方便查询）
+  orderNumber    String            @unique
+  assetType      String
+  direction      TradeDirection
+  entryTime      DateTime
+  expiryTime     DateTime
+  duration       Int
+  entryPrice     Decimal           @db.Decimal(18, 8)
+  currentPrice   Decimal?          @db.Decimal(18, 8)
+  exitPrice      Decimal?          @db.Decimal(18, 8)
+  spread         Decimal           @db.Decimal(18, 8)
+  investAmount   Decimal           @db.Decimal(18, 8)
+  returnRate     Decimal           @db.Decimal(7, 4)
+  actualReturn   Decimal           @db.Decimal(18, 8)
+  status         TransactionStatus @default(PENDING)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  settledAt      DateTime?
+  accountType    AccountType       @default(DEMO)
+  isManaged      Boolean           @default(false) // 是否在托管状态下产生的交易
+  tradingCycleId String?           // 关联的交易周期ID
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tradingCycle   TradingCycle?     @relation(fields: [tradingCycleId], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
   @@index([userId, accountType])
   @@index([orderNumber])
   @@index([assetType, createdAt])
   @@index([entryTime, expiryTime])
+  @@index([tradingCycleId])
+  @@index([isManaged])
 }
 
 model Testimonial {
@@ -254,4 +261,62 @@ model SystemSettings {
 
   @@index([category])
   @@index([key])
+}
+
+// 交易托管会话表
+model TradingSession {
+  id                String               @id @default(uuid())
+  userId            String               // 被托管的用户ID
+  userName          String?              // 用户名（冗余字段）
+  status            TradingSessionStatus @default(ACTIVE) // 托管状态
+  cycleIntervalSec  Int                  // 交易周期间隔（秒）
+  assetType         String               // 资产类型，如 "BTC/USDT"
+  accountType       AccountType          @default(DEMO) // 账户类型
+  createdById       String               // 创建者（管理员ID）
+  createdByName     String?              // 创建者名称
+  startedAt         DateTime             @default(now()) // 托管开始时间
+  stoppedAt         DateTime?            // 托管结束时间
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  tradingCycles     TradingCycle[]       // 关联的交易周期
+
+  @@index([userId, status])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// 交易周期表
+model TradingCycle {
+  id               String         @id @default(uuid())
+  tradingSessionId String         // 关联的托管会话ID
+  cycleNumber      Int            // 周期编号（第几个周期）
+  assetType        String         // 资产类型
+  startTime        DateTime       // 周期开始时间
+  endTime          DateTime       // 周期结束时间
+  durationSec      Int            // 持续时间（秒）
+  startPrice       Decimal?       @db.Decimal(18, 8) // 周期开始价格
+  endPrice         Decimal?       @db.Decimal(18, 8) // 周期结束价格
+  status           CycleStatus    @default(PENDING) // 周期状态
+  transactionCount Int            @default(0) // 该周期产生的交易数量
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  tradingSession   TradingSession @relation(fields: [tradingSessionId], references: [id], onDelete: Cascade)
+  transactions     TransactionLog[] // 该周期的交易流水
+
+  @@index([tradingSessionId, cycleNumber])
+  @@index([status, startTime])
+  @@index([assetType, startTime])
+}
+
+enum TradingSessionStatus {
+  ACTIVE   // 激活中（正在托管）
+  STOPPED  // 已停止
+  PAUSED   // 已暂停
+}
+
+enum CycleStatus {
+  PENDING    // 待开始
+  RUNNING    // 进行中
+  COMPLETED  // 已完成
+  FAILED     // 失败
 }

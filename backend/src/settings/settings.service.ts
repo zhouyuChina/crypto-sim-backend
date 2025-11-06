@@ -17,6 +17,7 @@ import type {
   UpdateTradingChannelsDto,
   UpdateCustomerServiceDto,
   UpdateLatencyDto,
+  UpdateShareConfigDto,
 } from './dto/update-settings.dto';
 
 @Injectable()
@@ -220,6 +221,7 @@ export class SettingsService {
       // 返回默认值
       return {
         enabled: false,
+        email: '',
         position: 'bottom-right',
         theme: 'light',
       };
@@ -280,6 +282,38 @@ export class SettingsService {
       description: '是否启用系统托管模式，启用后所有交易都将标记为托管交易',
     });
     this.logger.log(`系统托管模式已${enabled ? '启用' : '关闭'}`);
+  }
+
+  /**
+   * 更新分享内容设置
+   */
+  async updateShareConfig(dto: UpdateShareConfigDto): Promise<void> {
+    await this.updateSetting({
+      key: 'share.config',
+      value: dto.config,
+      description: '系统分享内容配置',
+    });
+
+    this.logger.log('分享内容设置已更新');
+  }
+
+  /**
+   * 获取分享内容设置
+   */
+  async getShareConfig() {
+    try {
+      const setting = await this.getSetting('share.config');
+      return setting.value;
+    } catch {
+      // 返回默认值
+      return {
+        title: '',
+        description: '',
+        image: '',
+        url: '',
+        hashtags: [],
+      };
+    }
   }
 
   /**

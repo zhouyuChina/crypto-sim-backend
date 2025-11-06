@@ -52,6 +52,7 @@ export class UpdateTradingChannelsDto {
 // 客服窗口设置
 export interface CustomerServiceConfig {
   enabled: boolean;
+  email?: string; // 客服邮箱地址
   provider?: string; // 如 "custom", "tawk", "intercom"
   scriptUrl?: string;
   widgetId?: string;
@@ -80,5 +81,19 @@ export interface LatencyConfig {
 export class UpdateLatencyDto {
   @IsObject()
   config!: LatencyConfig;
+}
+
+// 分享内容设置
+export interface ShareConfig {
+  title?: string;           // 分享标题
+  description?: string;     // 分享描述
+  image?: string;          // 分享图片 URL
+  url?: string;            // 分享链接
+  hashtags?: string[];     // 话题标签
+}
+
+export class UpdateShareConfigDto {
+  @IsObject()
+  config!: ShareConfig;
 }
 

@@ -59,7 +59,14 @@
       "Bash(node /tmp/create_mock_images.js:*)",
       "Bash(/tmp/test_id_card_display.sh:*)",
       "Bash(/tmp/test_transaction_query.sh:*)",
-      "Bash(/tmp/test_transaction_query_v2.sh)"
+      "Bash(/tmp/test_transaction_query_v2.sh)",
+      "Bash(/tmp/test_id_card_status.sh)",
+      "Bash(npm run build:*)",
+      "Bash(/tmp/test_customer_service_email.sh)",
+      "Bash(node -e:*)",
+      "Bash(/tmp/test_cs_email_simple.sh)",
+      "Bash(node /tmp/test_admin_login.js:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

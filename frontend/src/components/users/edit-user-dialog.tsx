@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { userService } from '@/services/users';
 import type { User, UpdateUserDto, AdjustBalanceDto } from '@/types/user';
+import { appConfig } from '@/config/env';
 
 import {
   Dialog,
@@ -29,9 +30,23 @@ interface EditUserDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const resolveFileUrl = (path?: string | null) => {
+  if (!path) {
+    return null;
+  }
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  const apiBase = appConfig.apiUrl.replace(/\/api\/?$/, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${apiBase}${normalizedPath}`;
+};
+
 export const EditUserDialog = ({ user, open, onOpenChange }: EditUserDialogProps) => {
   const { api } = useAuth();
   const queryClient = useQueryClient();
+  const idCardFrontUrl = resolveFileUrl(user?.idCardFront);
+  const idCardBackUrl = resolveFileUrl(user?.idCardBack);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -281,10 +296,10 @@ export const EditUserDialog = ({ user, open, onOpenChange }: EditUserDialogProps
                   <div>
                     <p className="text-sm text-gray-500 mb-2">身份证正面</p>
                     <img
-                      src={user.idCardFront ? `http://localhost:3000${user.idCardFront}` : '/id-card-placeholder.svg'}
+                      src={idCardFrontUrl || '/id-card-placeholder.svg'}
                       alt="身份证正面"
-                      className={`w-full h-48 object-contain border rounded ${user.idCardFront ? 'cursor-pointer hover:opacity-80' : ''} transition-opacity`}
-                      onClick={() => user.idCardFront && window.open(`http://localhost:3000${user.idCardFront}`, '_blank')}
+                      className={`w-full h-48 object-contain border rounded ${idCardFrontUrl ? 'cursor-pointer hover:opacity-80' : ''} transition-opacity`}
+                      onClick={() => idCardFrontUrl && window.open(idCardFrontUrl, '_blank')}
                     />
                   </div>
 
@@ -292,10 +307,10 @@ export const EditUserDialog = ({ user, open, onOpenChange }: EditUserDialogProps
                   <div>
                     <p className="text-sm text-gray-500 mb-2">身份证反面</p>
                     <img
-                      src={user.idCardBack ? `http://localhost:3000${user.idCardBack}` : '/id-card-placeholder.svg'}
+                      src={idCardBackUrl || '/id-card-placeholder.svg'}
                       alt="身份证反面"
-                      className={`w-full h-48 object-contain border rounded ${user.idCardBack ? 'cursor-pointer hover:opacity-80' : ''} transition-opacity`}
-                      onClick={() => user.idCardBack && window.open(`http://localhost:3000${user.idCardBack}`, '_blank')}
+                      className={`w-full h-48 object-contain border rounded ${idCardBackUrl ? 'cursor-pointer hover:opacity-80' : ''} transition-opacity`}
+                      onClick={() => idCardBackUrl && window.open(idCardBackUrl, '_blank')}
                     />
                   </div>
                 </div>
