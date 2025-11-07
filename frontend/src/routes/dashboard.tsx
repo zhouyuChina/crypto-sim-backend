@@ -18,30 +18,30 @@ export const DashboardPage = () => {
     <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
       <Card>
         <CardHeader>
-          <CardTitle>API 状态</CardTitle>
+          <CardTitle>API 狀態</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            {data ? '在线' : '检查中...'}
+            {data ? '在線' : '檢查中...'}
           </p>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>活跃用户</CardTitle>
+          <CardTitle>活躍用戶</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-3xl font-semibold">--</p>
-          <p className="text-sm text-muted-foreground">即将推出</p>
+          <p className="text-sm text-muted-foreground">即將推出</p>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>开放订单</CardTitle>
+          <CardTitle>開放訂單</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-3xl font-semibold">--</p>
-          <p className="text-sm text-muted-foreground">集成订单服务</p>
+          <p className="text-sm text-muted-foreground">集成訂單服務</p>
         </CardContent>
       </Card>
     </div>

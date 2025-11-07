@@ -18,9 +18,9 @@ export function MarketDataTable({ data }: MarketDataTableProps) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>交易对</TableHead>
-          <TableHead className="text-right">当前价格</TableHead>
-          <TableHead className="text-right">24h 涨跌</TableHead>
+          <TableHead>交易對</TableHead>
+          <TableHead className="text-right">当前價格</TableHead>
+          <TableHead className="text-right">24h 漲跌</TableHead>
           <TableHead className="text-right">24h 最高</TableHead>
           <TableHead className="text-right">24h 最低</TableHead>
           <TableHead className="text-right">24h 交易量</TableHead>

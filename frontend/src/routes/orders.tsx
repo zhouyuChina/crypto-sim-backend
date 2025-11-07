@@ -4,11 +4,11 @@ export const OrdersPage = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>订单</CardTitle>
+        <CardTitle>訂單</CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          订单管理视图将显示在这里。集成后端订单 API 以显示模拟交易和状态。
+          訂單管理視圖將顯示在這裡。集成後端訂單 API 以顯示模擬交易和狀態。
         </p>
       </CardContent>
     </Card>

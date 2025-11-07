@@ -19,7 +19,7 @@ export const transactionService = {
   },
 
   /**
-   * 根据订单号获取交易详情
+   * 根據訂單号获取交易详情
    */
   getByOrderNumber: async (
     api: AxiosInstance,
@@ -30,7 +30,7 @@ export const transactionService = {
   },
 
   /**
-   * 结算交易
+   * 結算交易
    */
   settle: async (
     api: AxiosInstance,
@@ -50,7 +50,7 @@ export const transactionService = {
   },
 
   /**
-   * 获取用户统计数据
+   * 获取用戶统计數據
    */
   getStatistics: async (api: AxiosInstance) => {
     const response = await api.get('/transactions/statistics');

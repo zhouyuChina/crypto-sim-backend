@@ -33,23 +33,23 @@ import type {
 const tabs = [
   {
     value: 'testimonials',
-    label: '用户见证管理',
-    description: '管理展示在站点上的用户见证内容'
+    label: '用戶見證管理',
+    description: '管理展示在登入前首頁上的用戶見證內容'
   },
   {
     value: 'carousel',
-    label: '公共轮播管理',
-    description: '配置公共区域轮播图与对应的跳转链接'
+    label: '公告輪播管理',
+    description: '配置登入後首頁公告輪播文字'
   },
   {
     value: 'leaderboard',
     label: '排行榜管理',
-    description: '维护排行榜展示的数据来源与排版'
+    description: '維護排行榜展示的數據來源與排版'
   },
   {
     value: 'trading-performance',
-    label: '交易时长/赢利率管理',
-    description: '维护不同交易时长对应的赢利率配置'
+    label: '交易時長/盈利率管理',
+    description: '維護不同交易時長對應的盈利率配置'
   }
 ] as const;
 
@@ -69,6 +69,23 @@ const leaderboardTypeLabel: Record<LeaderboardType, string> = {
   DAILY: '日榜',
   WEEKLY: '周榜',
   MONTHLY: '月榜'
+};
+
+// 格式化日期時間為兩行顯示
+const formatDateTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const dateStr = date.toLocaleDateString('zh-TW', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  });
+  const timeStr = date.toLocaleTimeString('zh-TW', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+  return `${dateStr}\n${timeStr}`;
 };
 
 type TestimonialFormState = {
@@ -121,7 +138,7 @@ type TradingPerformanceFormState = {
 };
 
 const initialTradingPerformanceFormState: TradingPerformanceFormState = {
-  tradeDuration: '0',
+  tradeDuration: '1',
   winRate: '0'
 };
 
@@ -156,6 +173,8 @@ export const CmsPage = () => {
     ...initialTradingPerformanceFormState
   }));
   const [performanceFormErrors, setPerformanceFormErrors] = useState<Record<string, string>>({});
+
+  const [leaderboardFilter, setLeaderboardFilter] = useState<LeaderboardType | 'all'>('all');
 
   const {
     data: testimonials = [],
@@ -196,7 +215,7 @@ export const CmsPage = () => {
       setDialogOpen(false);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || error.message || '新增失败，请稍后再试';
+      const message = error.response?.data?.message || error.message || '新增失敗，請稍后再试';
       setFormErrors({ general: message });
     }
   });
@@ -209,7 +228,7 @@ export const CmsPage = () => {
       setDialogOpen(false);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || error.message || '更新失败，请稍后再试';
+      const message = error.response?.data?.message || error.message || '更新失敗，請稍后再试';
       setFormErrors({ general: message });
     }
   });
@@ -230,7 +249,7 @@ export const CmsPage = () => {
       setCarouselDialogOpen(false);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || error.message || '新增失败，请稍后再试';
+      const message = error.response?.data?.message || error.message || '新增失敗，請稍后再试';
       setCarouselFormErrors({ general: message });
     }
   });
@@ -243,7 +262,7 @@ export const CmsPage = () => {
       setCarouselDialogOpen(false);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || error.message || '更新失败，请稍后再试';
+      const message = error.response?.data?.message || error.message || '更新失敗，請稍后再试';
       setCarouselFormErrors({ general: message });
     }
   });
@@ -265,7 +284,7 @@ export const CmsPage = () => {
       setLeaderboardDialogOpen(false);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || error.message || '新增失败，请稍后再试';
+      const message = error.response?.data?.message || error.message || '新增失敗，請稍后再试';
       setLeaderboardFormErrors({ general: message });
     }
   });
@@ -278,7 +297,7 @@ export const CmsPage = () => {
       setLeaderboardDialogOpen(false);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || error.message || '更新失败，请稍后再试';
+      const message = error.response?.data?.message || error.message || '更新失敗，請稍后再试';
       setLeaderboardFormErrors({ general: message });
     }
   });
@@ -301,7 +320,7 @@ export const CmsPage = () => {
       setPerformanceDialogOpen(false);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || error.message || '新增失败，请稍后再试';
+      const message = error.response?.data?.message || error.message || '新增失敗，請稍后再试';
       setPerformanceFormErrors({ general: message });
     }
   });
@@ -314,7 +333,7 @@ export const CmsPage = () => {
       setPerformanceDialogOpen(false);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || error.message || '更新失败，请稍后再试';
+      const message = error.response?.data?.message || error.message || '更新失敗，請稍后再试';
       setPerformanceFormErrors({ general: message });
     }
   });
@@ -361,22 +380,22 @@ export const CmsPage = () => {
     const errors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      errors.name = '名称不能为空';
+      errors.name = '名稱不能为空';
     }
 
     if (!formData.title.trim()) {
-      errors.title = '称号不能为空';
+      errors.title = '稱號不能为空';
     }
 
     const rating = Number(formData.rating);
     if (Number.isNaN(rating)) {
-      errors.rating = '评价星必须是数字';
+      errors.rating = '評價星必须是数字';
     } else if (rating < 1 || rating > 5) {
-      errors.rating = '评价星范围为 1-5';
+      errors.rating = '評價星范围为 1-5';
     }
 
     if (!formData.content.trim()) {
-      errors.content = '评论内容不能为空';
+      errors.content = '評論內容不能为空';
     }
 
     return errors;
@@ -407,7 +426,7 @@ export const CmsPage = () => {
 
   const handleDelete = (testimonial: Testimonial) => {
     if (deleteMutation.isPending) return;
-    const confirmed = window.confirm(`确认删除「${testimonial.name}」的用户见证吗？`);
+    const confirmed = window.confirm(`確認刪除「${testimonial.name}」的用戶見證嗎？`);
     if (confirmed) {
       deleteMutation.mutate(testimonial.id);
     }
@@ -444,13 +463,13 @@ export const CmsPage = () => {
 
     const sortOrder = Number(carouselFormData.sortOrder);
     if (!Number.isInteger(sortOrder)) {
-      errors.sortOrder = '排序必须是整数';
+      errors.sortOrder = '排序必須是整數';
     } else if (sortOrder < 0) {
       errors.sortOrder = '排序不能小于 0';
     }
 
     if (!carouselFormData.content.trim()) {
-      errors.content = '内文不能为空';
+      errors.content = '內文不能为空';
     }
 
     return errors;
@@ -479,7 +498,7 @@ export const CmsPage = () => {
 
   const handleCarouselDelete = (item: CarouselItem) => {
     if (deleteCarouselMutation.isPending) return;
-    const confirmed = window.confirm(`确认删除排序为 ${item.sortOrder} 的公告轮播吗？`);
+    const confirmed = window.confirm(`確認刪除排序為 ${item.sortOrder} 的公告輪播嗎？`);
     if (confirmed) {
       deleteCarouselMutation.mutate(item.id);
     }
@@ -520,7 +539,7 @@ export const CmsPage = () => {
     const errors: Record<string, string> = {};
 
     if (!leaderboardFormData.country.trim()) {
-      errors.country = '国家不能为空';
+      errors.country = '國家不能为空';
     }
 
     if (!leaderboardFormData.name.trim()) {
@@ -529,24 +548,24 @@ export const CmsPage = () => {
 
     const tradeCount = Number(leaderboardFormData.tradeCount);
     if (!Number.isInteger(tradeCount) || tradeCount < 0) {
-      errors.tradeCount = '成交笔数必须是 >= 0 的整数';
+      errors.tradeCount = '成交筆數必須是 >= 0 的整數';
     }
 
     const winRate = Number(leaderboardFormData.winRate);
     if (Number.isNaN(winRate) || winRate < 0 || winRate > 100) {
-      errors.winRate = '胜率需在 0-100 之间';
+      errors.winRate = '勝率需在 0-100 之間';
     }
 
     const volume = Number(leaderboardFormData.volume);
     if (Number.isNaN(volume) || volume < 0) {
-      errors.volume = '成交金额必须是非负数';
+      errors.volume = '成交金額必須是非負數';
     }
 
     if (leaderboardFormData.avatar.trim()) {
       try {
         new URL(leaderboardFormData.avatar.trim());
       } catch {
-        errors.avatar = '头像地址不是有效的 URL';
+        errors.avatar = '頭像地址不是有效的 URL';
       }
     }
 
@@ -581,7 +600,7 @@ export const CmsPage = () => {
 
   const handleLeaderboardDelete = (entry: LeaderboardEntry) => {
     if (deleteLeaderboardMutation.isPending) return;
-    const confirmed = window.confirm(`确认删除 ${leaderboardTypeLabel[entry.type]} 的 ${entry.name} 吗？`);
+    const confirmed = window.confirm(`確認刪除 ${leaderboardTypeLabel[entry.type]} 的 ${entry.name} 嗎？`);
     if (confirmed) {
       deleteLeaderboardMutation.mutate(entry.id);
     }
@@ -617,13 +636,13 @@ export const CmsPage = () => {
     const errors: Record<string, string> = {};
 
     const duration = Number(performanceFormData.tradeDuration);
-    if (!Number.isInteger(duration) || duration < 0) {
-      errors.tradeDuration = '交易时长必须是 >= 0 的整数（单位：分钟）';
+    if (!Number.isInteger(duration) || duration < 1 || duration > 300) {
+      errors.tradeDuration = '交易時長必須是 1~300 的整數（單位：秒）';
     }
 
     const winRate = Number(performanceFormData.winRate);
     if (Number.isNaN(winRate) || winRate < 0 || winRate > 100) {
-      errors.winRate = '赢利率需在 0-100 之间';
+      errors.winRate = '盈利率需在 0-100 之間';
     }
 
     return errors;
@@ -652,7 +671,7 @@ export const CmsPage = () => {
 
   const handlePerformanceDelete = (entry: TradingPerformanceEntry) => {
     if (deletePerformanceMutation.isPending) return;
-    const confirmed = window.confirm(`确认删除交易时长 ${entry.tradeDuration} 分钟的配置吗？`);
+    const confirmed = window.confirm(`確認刪除交易時長 ${entry.tradeDuration} 秒的配置嗎？`);
     if (confirmed) {
       deletePerformanceMutation.mutate(entry.id);
     }
@@ -662,7 +681,7 @@ export const CmsPage = () => {
     if (testimonialsLoading) {
       return (
         <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-          正在加载用户见证...
+          正在載入用戶見證...
         </div>
       );
     }
@@ -670,67 +689,69 @@ export const CmsPage = () => {
     if (testimonials.length === 0) {
       return (
         <div className="flex h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-          暂无用户见证，点击右上角按钮新增一条吧。
+          暫無用戶見證，點擊右上角按鈕新增一條吧。
         </div>
       );
     }
 
     return (
       <div className="space-y-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-40">名称</TableHead>
-              <TableHead className="w-48">称号</TableHead>
-              <TableHead className="w-24">评价星</TableHead>
-              <TableHead>评论内容</TableHead>
-              <TableHead className="w-40">更新时间</TableHead>
-              <TableHead className="w-32 text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {testimonials.map(testimonial => (
-              <TableRow key={testimonial.id}>
-                <TableCell className="font-medium">{testimonial.name}</TableCell>
-                <TableCell>{testimonial.title}</TableCell>
-                <TableCell>
-                  <span className="font-medium text-amber-500">
-                    {'★'.repeat(testimonial.rating)}
-                  </span>
-                  <span className="ml-1 text-muted-foreground">
-                    {testimonial.rating}/5
-                  </span>
-                </TableCell>
-                <TableCell className="max-w-xl whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                  {testimonial.content}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {new Date(testimonial.updatedAt).toLocaleString()}
-                </TableCell>
-                <TableCell className="flex items-center justify-end gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleEdit(testimonial)}
-                  >
-                    <Edit2 className="mr-1 h-4 w-4" />
-                    编辑
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(testimonial)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash2 className="mr-1 h-4 w-4" />
-                    删除
-                  </Button>
-                </TableCell>
+        <div className="rounded-md border overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead style={{ minWidth: '100px' }}>名稱</TableHead>
+                <TableHead style={{ minWidth: '120px' }}>稱號</TableHead>
+                <TableHead className="w-24">評價星</TableHead>
+                <TableHead style={{ minWidth: '200px' }}>評論內容</TableHead>
+                <TableHead style={{ minWidth: '150px' }}>更新時間</TableHead>
+                <TableHead className="w-32 text-right">操作</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {testimonials.map(testimonial => (
+                <TableRow key={testimonial.id}>
+                  <TableCell className="font-medium">{testimonial.name}</TableCell>
+                  <TableCell>{testimonial.title}</TableCell>
+                  <TableCell>
+                    <span className="font-medium text-amber-500">
+                      {'★'.repeat(testimonial.rating)}
+                    </span>
+                    <span className="ml-1 text-muted-foreground">
+                      {testimonial.rating}/5
+                    </span>
+                  </TableCell>
+                  <TableCell className="max-w-xl whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                    {testimonial.content}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-pre-line">
+                    {formatDateTime(testimonial.updatedAt)}
+                  </TableCell>
+                  <TableCell className="flex items-center justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEdit(testimonial)}
+                    >
+                      <Edit2 className="mr-1 h-4 w-4" />
+                      編輯
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(testimonial)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      刪除
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   };
@@ -739,7 +760,7 @@ export const CmsPage = () => {
     if (carouselsLoading) {
       return (
         <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-          正在加载公告轮播...
+          正在載入公告輪播...
         </div>
       );
     }
@@ -747,52 +768,54 @@ export const CmsPage = () => {
     if (carousels.length === 0) {
       return (
         <div className="flex h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-          暂无公告轮播，点击右上角按钮新增一条吧。
+          暫無公告輪播，點擊右上角按鈕新增一條吧。
         </div>
       );
     }
 
     return (
       <div className="space-y-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-24">排序</TableHead>
-              <TableHead>内容</TableHead>
-              <TableHead className="w-40">更新时间</TableHead>
-              <TableHead className="w-32 text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {carousels.map(item => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.sortOrder}</TableCell>
-                <TableCell className="max-w-2xl whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                  {item.content}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {new Date(item.updatedAt).toLocaleString()}
-                </TableCell>
-                <TableCell className="flex items-center justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => handleEditCarousel(item)}>
-                    <Edit2 className="mr-1 h-4 w-4" />
-                    编辑
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleCarouselDelete(item)}
-                    disabled={deleteCarouselMutation.isPending}
-                  >
-                    <Trash2 className="mr-1 h-4 w-4" />
-                    删除
-                  </Button>
-                </TableCell>
+        <div className="rounded-md border overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-24">排序</TableHead>
+                <TableHead>內容</TableHead>
+                <TableHead className="w-40">更新時間</TableHead>
+                <TableHead className="w-32 text-right">操作</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {carousels.map(item => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.sortOrder}</TableCell>
+                  <TableCell className="max-w-2xl whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                    {item.content}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-pre-line">
+                    {formatDateTime(item.updatedAt)}
+                  </TableCell>
+                  <TableCell className="flex items-center justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => handleEditCarousel(item)}>
+                      <Edit2 className="mr-1 h-4 w-4" />
+                      編輯
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleCarouselDelete(item)}
+                      disabled={deleteCarouselMutation.isPending}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      刪除
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   };
@@ -801,78 +824,122 @@ export const CmsPage = () => {
     if (leaderboardLoading) {
       return (
         <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-          正在加载排行榜...
+          正在載入排行榜...
         </div>
       );
     }
 
-    if (leaderboard.length === 0) {
+    const filteredLeaderboard = leaderboardFilter === 'all' 
+      ? leaderboard 
+      : leaderboard.filter(entry => entry.type === leaderboardFilter);
+
+    if (filteredLeaderboard.length === 0) {
       return (
-        <div className="flex h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-          暂无排行榜数据，点击右上角按钮新增一条吧。
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">篩選：</span>
+            <Select
+              value={leaderboardFilter}
+              onValueChange={(value) => setLeaderboardFilter(value as LeaderboardType | 'all')}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部</SelectItem>
+                <SelectItem value="DAILY">日榜</SelectItem>
+                <SelectItem value="WEEKLY">週榜</SelectItem>
+                <SelectItem value="MONTHLY">月榜</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+            {leaderboard.length === 0 
+              ? '暫無排行榜數據，點擊右上角按鈕新增一條吧。'
+              : `暫無${leaderboardFilter === 'DAILY' ? '日榜' : leaderboardFilter === 'WEEKLY' ? '週榜' : '月榜'}數據`}
+          </div>
         </div>
       );
     }
 
     return (
       <div className="space-y-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-24">类型</TableHead>
-              <TableHead className="w-24">头像</TableHead>
-              <TableHead className="w-28">国家/地区</TableHead>
-              <TableHead className="w-32">姓名</TableHead>
-              <TableHead className="w-28">成交笔数</TableHead>
-              <TableHead className="w-24">胜率</TableHead>
-              <TableHead className="w-32">成交金额</TableHead>
-              <TableHead className="w-40">更新时间</TableHead>
-              <TableHead className="w-32 text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {leaderboard.map(entry => (
-              <TableRow key={entry.id}>
-                <TableCell className="font-medium">{leaderboardTypeLabel[entry.type]}</TableCell>
-                <TableCell>
-                  {entry.avatar ? (
-                    <img
-                      src={entry.avatar}
-                      alt={entry.name}
-                      className="h-10 w-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">未上传</span>
-                  )}
-                </TableCell>
-                <TableCell>{entry.country}</TableCell>
-                <TableCell>{entry.name}</TableCell>
-                <TableCell>{entry.tradeCount.toLocaleString()}</TableCell>
-                <TableCell>{entry.winRate.toFixed(2)}%</TableCell>
-                <TableCell>￥{entry.volume.toLocaleString()}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {new Date(entry.updatedAt).toLocaleString()}
-                </TableCell>
-                <TableCell className="flex items-center justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => handleEditLeaderboard(entry)}>
-                    <Edit2 className="mr-1 h-4 w-4" />
-                    编辑
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleLeaderboardDelete(entry)}
-                    disabled={deleteLeaderboardMutation.isPending}
-                  >
-                    <Trash2 className="mr-1 h-4 w-4" />
-                    删除
-                  </Button>
-                </TableCell>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">篩選：</span>
+          <Select
+            value={leaderboardFilter}
+            onValueChange={(value) => setLeaderboardFilter(value as LeaderboardType | 'all')}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部</SelectItem>
+              <SelectItem value="DAILY">日榜</SelectItem>
+              <SelectItem value="WEEKLY">週榜</SelectItem>
+              <SelectItem value="MONTHLY">月榜</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="rounded-md border overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-24">類型</TableHead>
+                <TableHead style={{ minWidth: '90px' }}>頭像</TableHead>
+                <TableHead className="w-28">國家/地區</TableHead>
+                <TableHead className="w-32">姓名</TableHead>
+                <TableHead className="w-28">成交筆數</TableHead>
+                <TableHead className="w-24">勝率</TableHead>
+                <TableHead className="w-32">成交金額</TableHead>
+                <TableHead className="w-40">更新時間</TableHead>
+                <TableHead className="w-32 text-right">操作</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredLeaderboard.map(entry => (
+                <TableRow key={entry.id}>
+                  <TableCell className="font-medium">{leaderboardTypeLabel[entry.type]}</TableCell>
+                  <TableCell>
+                    {entry.avatar ? (
+                      <img
+                        src={entry.avatar}
+                        alt={entry.name}
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">未上传</span>
+                    )}
+                  </TableCell>
+                  <TableCell>{entry.country}</TableCell>
+                  <TableCell>{entry.name}</TableCell>
+                  <TableCell>{entry.tradeCount.toLocaleString()}</TableCell>
+                  <TableCell>{entry.winRate.toFixed(2)}%</TableCell>
+                  <TableCell>${entry.volume.toLocaleString()} USDT</TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-pre-line">
+                    {formatDateTime(entry.updatedAt)}
+                  </TableCell>
+                  <TableCell className="flex items-center justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => handleEditLeaderboard(entry)}>
+                      <Edit2 className="mr-1 h-4 w-4" />
+                      編輯
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleLeaderboardDelete(entry)}
+                      disabled={deleteLeaderboardMutation.isPending}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      刪除
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   };
@@ -881,7 +948,7 @@ export const CmsPage = () => {
     if (tradingPerformanceLoading) {
       return (
         <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-          正在加载交易时长与赢利率配置...
+          正在載入交易時長与盈利率配置...
         </div>
       );
     }
@@ -889,59 +956,61 @@ export const CmsPage = () => {
     if (tradingPerformance.length === 0) {
       return (
         <div className="flex h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-          暂无交易时长配置，点击右上角按钮新增一条吧。
+          暫無交易時長配置，點擊右上角按鈕新增一條吧。
         </div>
       );
     }
 
     return (
       <div className="space-y-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-40">交易时长 (分钟)</TableHead>
-              <TableHead className="w-32">赢利率 (%)</TableHead>
-              <TableHead className="w-40">更新时间</TableHead>
-              <TableHead className="w-32 text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tradingPerformance.map(entry => (
-              <TableRow key={entry.id}>
-                <TableCell className="font-medium">{entry.tradeDuration}</TableCell>
-                <TableCell>{entry.winRate.toFixed(2)}%</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {new Date(entry.updatedAt).toLocaleString()}
-                </TableCell>
-                <TableCell className="flex items-center justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => handleEditPerformance(entry)}>
-                    <Edit2 className="mr-1 h-4 w-4" />
-                    编辑
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handlePerformanceDelete(entry)}
-                    disabled={deletePerformanceMutation.isPending}
-                  >
-                    <Trash2 className="mr-1 h-4 w-4" />
-                    删除
-                  </Button>
-                </TableCell>
+        <div className="rounded-md border overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-40">交易時長 (秒)</TableHead>
+                <TableHead className="w-32">盈利率 (%)</TableHead>
+                <TableHead className="w-40">更新時間</TableHead>
+                <TableHead className="w-32 text-right">操作</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {tradingPerformance.map(entry => (
+                <TableRow key={entry.id}>
+                  <TableCell className="font-medium">{entry.tradeDuration}</TableCell>
+                  <TableCell>{entry.winRate.toFixed(2)}%</TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-pre-line">
+                    {formatDateTime(entry.updatedAt)}
+                  </TableCell>
+                  <TableCell className="flex items-center justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => handleEditPerformance(entry)}>
+                      <Edit2 className="mr-1 h-4 w-4" />
+                      編輯
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handlePerformanceDelete(entry)}
+                      disabled={deletePerformanceMutation.isPending}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      刪除
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="container mx-auto space-y-6 py-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">CMS 内容管理</h1>
-        <p className="text-muted-foreground">集中管理站点前台的营销与展示内容</p>
+        <h1 className="text-3xl font-bold">CMS 內容管理</h1>
+        <p className="text-muted-foreground">集中管理網頁前端營銷與展示內容</p>
       </div>
 
       <Tabs defaultValue={tabs[0]?.value ?? ''} className="space-y-4">
@@ -969,12 +1038,12 @@ export const CmsPage = () => {
                   </div>
                   {isTestimonials ? (
                     <Button size="sm" onClick={handleCreate}>
-                      新增用户见证
+                      新增用戶見證
                     </Button>
                   ) : null}
                   {isCarousel ? (
                     <Button size="sm" onClick={handleCreateCarousel}>
-                      新增公告轮播
+                      新增公告輪播
                     </Button>
                   ) : null}
                   {isLeaderboard ? (
@@ -984,7 +1053,7 @@ export const CmsPage = () => {
                   ) : null}
                   {isTradingPerformanceTab ? (
                     <Button size="sm" onClick={handleCreatePerformance}>
-                      新增交易时长配置
+                      新增交易時長配置
                     </Button>
                   ) : null}
                 </CardHeader>
@@ -1006,7 +1075,7 @@ export const CmsPage = () => {
                   <DialogContent className="sm:max-w-[520px]">
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <DialogHeader>
-                        <DialogTitle>{editing ? '编辑用户见证' : '新增用户见证'}</DialogTitle>
+                        <DialogTitle>{editing ? '編輯用戶見證' : '新增用戶見證'}</DialogTitle>
                       </DialogHeader>
 
                       {formErrors.general && (
@@ -1016,12 +1085,12 @@ export const CmsPage = () => {
                       )}
 
                       <div className="space-y-2">
-                        <Label htmlFor="testimonial-name">名称</Label>
+                        <Label htmlFor="testimonial-name">名稱</Label>
                         <Input
                           id="testimonial-name"
                           value={formData.name}
                           onChange={event => setFormData(prev => ({ ...prev, name: event.target.value }))}
-                          placeholder="例如：张伟"
+                          placeholder="例如：張偉"
                           disabled={isSubmitting}
                         />
                         {formErrors.name ? (
@@ -1030,14 +1099,14 @@ export const CmsPage = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="testimonial-title">称号</Label>
+                        <Label htmlFor="testimonial-title">稱號</Label>
                         <Input
                           id="testimonial-title"
                           value={formData.title}
                           onChange={event =>
                             setFormData(prev => ({ ...prev, title: event.target.value }))
                           }
-                          placeholder="例如：资深交易员"
+                          placeholder="例如：資深交易員"
                           disabled={isSubmitting}
                         />
                         {formErrors.title ? (
@@ -1046,7 +1115,7 @@ export const CmsPage = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="testimonial-rating">评价星</Label>
+                        <Label htmlFor="testimonial-rating">評價星</Label>
                         <Input
                           id="testimonial-rating"
                           type="number"
@@ -1061,12 +1130,12 @@ export const CmsPage = () => {
                         {formErrors.rating ? (
                           <p className="text-sm text-destructive">{formErrors.rating}</p>
                         ) : (
-                          <p className="text-xs text-muted-foreground">输入 1-5 之间的整数</p>
+                          <p className="text-xs text-muted-foreground">輸入 1-5 之间的整数</p>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="testimonial-content">评论内文</Label>
+                        <Label htmlFor="testimonial-content">評論內文</Label>
                         <textarea
                           id="testimonial-content"
                           value={formData.content}
@@ -1075,14 +1144,14 @@ export const CmsPage = () => {
                           }
                           rows={5}
                           className="min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          placeholder="请输入详细的评价内容..."
+                          placeholder="請輸入详细的评價內容..."
                           disabled={isSubmitting}
                         />
                         {formErrors.content ? (
                           <p className="text-sm text-destructive">{formErrors.content}</p>
                         ) : (
                           <p className="text-xs text-muted-foreground">
-                            建议 20-200 字，突出体验亮点
+                            建議 20-200 字，突出體驗亮點
                           </p>
                         )}
                       </div>
@@ -1097,7 +1166,7 @@ export const CmsPage = () => {
                           取消
                         </Button>
                         <Button type="submit" disabled={isSubmitting}>
-                          {isSubmitting ? '提交中…' : editing ? '保存修改' : '创建'}
+                          {isSubmitting ? '提交中…' : editing ? '保存修改' : '創建'}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -1110,7 +1179,7 @@ export const CmsPage = () => {
                   <DialogContent className="sm:max-w-[520px]">
                     <form onSubmit={handleCarouselSubmit} className="space-y-4">
                       <DialogHeader>
-                        <DialogTitle>{editingCarousel ? '编辑公告轮播' : '新增公告轮播'}</DialogTitle>
+                        <DialogTitle>{editingCarousel ? '編輯公告輪播' : '新增公告輪播'}</DialogTitle>
                       </DialogHeader>
 
                       {carouselFormErrors.general && (
@@ -1138,13 +1207,13 @@ export const CmsPage = () => {
                           <p className="text-sm text-destructive">{carouselFormErrors.sortOrder}</p>
                         ) : (
                           <p className="text-xs text-muted-foreground">
-                            数值越小越靠前，建议从 0 或 1 开始递增
+                            數值越小越靠前，建議從 0 或 1 開始遞增
                           </p>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="carousel-content">内文</Label>
+                        <Label htmlFor="carousel-content">內文</Label>
                         <textarea
                           id="carousel-content"
                           value={carouselFormData.content}
@@ -1153,7 +1222,7 @@ export const CmsPage = () => {
                           }
                           rows={4}
                           className="min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          placeholder="请输入公告内容..."
+                          placeholder="請輸入公告內容..."
                           disabled={isCarouselSubmitting}
                         />
                         {carouselFormErrors.content ? (
@@ -1171,7 +1240,7 @@ export const CmsPage = () => {
                           取消
                         </Button>
                         <Button type="submit" disabled={isCarouselSubmitting}>
-                          {isCarouselSubmitting ? '提交中…' : editingCarousel ? '保存修改' : '创建'}
+                          {isCarouselSubmitting ? '提交中…' : editingCarousel ? '保存修改' : '創建'}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -1188,7 +1257,7 @@ export const CmsPage = () => {
                     <form onSubmit={handleLeaderboardSubmit} className="space-y-4">
                       <DialogHeader>
                         <DialogTitle>
-                          {editingLeaderboard ? '编辑排行榜记录' : '新增排行榜记录'}
+                          {editingLeaderboard ? '編輯排行榜记录' : '新增排行榜记录'}
                         </DialogTitle>
                       </DialogHeader>
 
@@ -1200,7 +1269,7 @@ export const CmsPage = () => {
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
-                          <Label htmlFor="leaderboard-type">排行榜类型</Label>
+                          <Label htmlFor="leaderboard-type">排行榜類型</Label>
                           <Select
                             value={leaderboardFormData.type}
                             onValueChange={value =>
@@ -1212,7 +1281,7 @@ export const CmsPage = () => {
                             disabled={isLeaderboardSubmitting}
                           >
                             <SelectTrigger id="leaderboard-type">
-                              <SelectValue placeholder="选择类型" />
+                              <SelectValue placeholder="選擇類型" />
                             </SelectTrigger>
                             <SelectContent>
                               {leaderboardTypeOptions.map(option => (
@@ -1225,7 +1294,7 @@ export const CmsPage = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="leaderboard-avatar">头像链接</Label>
+                          <Label htmlFor="leaderboard-avatar">頭像链接</Label>
                           <Input
                             id="leaderboard-avatar"
                             value={leaderboardFormData.avatar}
@@ -1241,12 +1310,12 @@ export const CmsPage = () => {
                           {leaderboardFormErrors.avatar ? (
                             <p className="text-sm text-destructive">{leaderboardFormErrors.avatar}</p>
                           ) : (
-                            <p className="text-xs text-muted-foreground">可选，建议使用 CDN 图片地址</p>
+                            <p className="text-xs text-muted-foreground">可選，建議使用 CDN 圖片地址</p>
                           )}
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="leaderboard-country">国家/地区</Label>
+                          <Label htmlFor="leaderboard-country">國家/地區</Label>
                           <Input
                             id="leaderboard-country"
                             value={leaderboardFormData.country}
@@ -1256,7 +1325,7 @@ export const CmsPage = () => {
                                 country: event.target.value
                               }))
                             }
-                            placeholder="例如：中国"
+                            placeholder="例如：中國"
                             disabled={isLeaderboardSubmitting}
                           />
                           {leaderboardFormErrors.country ? (
@@ -1275,7 +1344,7 @@ export const CmsPage = () => {
                                 name: event.target.value
                               }))
                             }
-                            placeholder="例如：陈睿"
+                            placeholder="例如：陳睿"
                             disabled={isLeaderboardSubmitting}
                           />
                           {leaderboardFormErrors.name ? (
@@ -1284,7 +1353,7 @@ export const CmsPage = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="leaderboard-tradeCount">成交笔数</Label>
+                          <Label htmlFor="leaderboard-tradeCount">成交筆數</Label>
                           <Input
                             id="leaderboard-tradeCount"
                             type="number"
@@ -1304,7 +1373,7 @@ export const CmsPage = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="leaderboard-winRate">胜率 (%)</Label>
+                          <Label htmlFor="leaderboard-winRate">勝率 (%)</Label>
                           <Input
                             id="leaderboard-winRate"
                             type="number"
@@ -1323,12 +1392,12 @@ export const CmsPage = () => {
                           {leaderboardFormErrors.winRate ? (
                             <p className="text-sm text-destructive">{leaderboardFormErrors.winRate}</p>
                           ) : (
-                            <p className="text-xs text-muted-foreground">范围 0-100，保留 2 位小数</p>
+                            <p className="text-xs text-muted-foreground">範圍 0-100，保留 2 位小数</p>
                           )}
                         </div>
 
                         <div className="space-y-2 md:col-span-2">
-                          <Label htmlFor="leaderboard-volume">成交金额</Label>
+                          <Label htmlFor="leaderboard-volume">成交金額</Label>
                           <Input
                             id="leaderboard-volume"
                             type="number"
@@ -1346,7 +1415,7 @@ export const CmsPage = () => {
                           {leaderboardFormErrors.volume ? (
                             <p className="text-sm text-destructive">{leaderboardFormErrors.volume}</p>
                           ) : (
-                            <p className="text-xs text-muted-foreground">支持两位小数，单位：平台默认货币</p>
+                            <p className="text-xs text-muted-foreground">支持兩位小數，單位：平台默認貨幣</p>
                           )}
                         </div>
                       </div>
@@ -1361,7 +1430,7 @@ export const CmsPage = () => {
                           取消
                         </Button>
                         <Button type="submit" disabled={isLeaderboardSubmitting}>
-                          {isLeaderboardSubmitting ? '提交中…' : editingLeaderboard ? '保存修改' : '创建'}
+                          {isLeaderboardSubmitting ? '提交中…' : editingLeaderboard ? '保存修改' : '創建'}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -1375,7 +1444,7 @@ export const CmsPage = () => {
                     <form onSubmit={handlePerformanceSubmit} className="space-y-4">
                       <DialogHeader>
                         <DialogTitle>
-                          {editingPerformance ? '编辑交易时长配置' : '新增交易时长配置'}
+                          {editingPerformance ? '編輯交易時長配置' : '新增交易時長配置'}
                         </DialogTitle>
                       </DialogHeader>
 
@@ -1386,11 +1455,12 @@ export const CmsPage = () => {
                       )}
 
                       <div className="space-y-2">
-                        <Label htmlFor="performance-duration">交易时长 (分钟)</Label>
+                        <Label htmlFor="performance-duration">交易時長 (秒)</Label>
                         <Input
                           id="performance-duration"
                           type="number"
-                          min={0}
+                          min={1}
+                          max={300}
                           value={performanceFormData.tradeDuration}
                           onChange={event =>
                             setPerformanceFormData(prev => ({
@@ -1405,12 +1475,12 @@ export const CmsPage = () => {
                             {performanceFormErrors.tradeDuration}
                           </p>
                         ) : (
-                          <p className="text-xs text-muted-foreground">可设置 0 及以上整数，单位为分钟</p>
+                          <p className="text-xs text-muted-foreground">可設置 1~300 的整數，單位為秒</p>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="performance-winRate">赢利率 (%)</Label>
+                        <Label htmlFor="performance-winRate">盈利率 (%)</Label>
                         <Input
                           id="performance-winRate"
                           type="number"
@@ -1429,7 +1499,7 @@ export const CmsPage = () => {
                         {performanceFormErrors.winRate ? (
                           <p className="text-sm text-destructive">{performanceFormErrors.winRate}</p>
                         ) : (
-                          <p className="text-xs text-muted-foreground">范围 0-100，可保留两位小数</p>
+                          <p className="text-xs text-muted-foreground">範圍 0-100，可保留兩位小數</p>
                         )}
                       </div>
 
@@ -1443,7 +1513,7 @@ export const CmsPage = () => {
                           取消
                         </Button>
                         <Button type="submit" disabled={isPerformanceSubmitting}>
-                          {isPerformanceSubmitting ? '提交中…' : editingPerformance ? '保存修改' : '创建'}
+                          {isPerformanceSubmitting ? '提交中…' : editingPerformance ? '保存修改' : '創建'}
                         </Button>
                       </DialogFooter>
                     </form>

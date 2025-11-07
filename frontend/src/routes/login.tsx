@@ -11,8 +11,8 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 
 const loginSchema = z.object({
-  username: z.string().min(1, '请输入用户名'),
-  password: z.string().min(6, '密码至少6位')
+  username: z.string().min(1, '請輸入用戶名'),
+  password: z.string().min(6, '密碼至少6位')
 });
 
 type LoginValues = z.infer<typeof loginSchema>;
@@ -44,7 +44,7 @@ export const LoginPage = () => {
       await login(values.username, values.password);
       // Navigation will happen via the useEffect above when isAuthenticated changes
     } catch (err) {
-      setError('用户名或密码错误');
+      setError('用戶名或密碼錯誤');
     }
   });
 
@@ -52,18 +52,18 @@ export const LoginPage = () => {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>加密货币模拟后台管理</CardTitle>
-          <CardDescription>访问管理控制台</CardDescription>
+          <CardTitle>CT 二元期權後台管理</CardTitle>
+          <CardDescription>訪問管理控制台</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="username">用户名</Label>
+              <Label htmlFor="username">用戶名</Label>
               <Input id="username" type="text" placeholder="admin" {...register('username')} />
               {errors.username && <p className="text-sm text-destructive">{errors.username.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">密码</Label>
+              <Label htmlFor="password">密碼</Label>
               <Input id="password" type="password" {...register('password')} />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
@@ -71,11 +71,11 @@ export const LoginPage = () => {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? '登录中…' : '登录'}
+              {loading ? '登入中…' : '登入'}
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            需要账户？请联系管理员获取访问权限。
+            需要帳戶？請聯繫管理員獲取訪問權限。
           </p>
         </CardContent>
       </Card>

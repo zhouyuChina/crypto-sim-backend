@@ -16,14 +16,14 @@ export interface SettingsByCategory {
   [key: string]: Setting[] | undefined;
 }
 
-// 管理员账号设置
+// 管理員帳號設置
 export interface UpdateAdminAccountDto {
   username: string;
   password: string;
   displayName?: string;
 }
 
-// 交易渠道设置
+// 交易渠道設置
 export interface TradingChannel {
   name: string;
   enabled: boolean;
@@ -36,7 +36,7 @@ export interface UpdateTradingChannelsDto {
   channels: TradingChannel[];
 }
 
-// 客服窗口设置
+// 客服窗口設置
 export interface CustomerServiceConfig {
   enabled: boolean;
   provider?: string; // 如 "custom", "tawk", "intercom"
@@ -51,15 +51,42 @@ export interface UpdateCustomerServiceDto {
   config: CustomerServiceConfig;
 }
 
-// 延迟设置
+// 延遲設置
 export interface LatencyConfig {
-  tradingDelay: number; // 交易延迟（毫秒）
-  apiDelay: number; // API 调用延迟（毫秒）
-  priceUpdateDelay: number; // 价格更新延迟（毫秒）
-  settlementDelay: number; // 结算延迟（毫秒）
+  userDataDelay: number; // 用戶數據延遲（秒）
 }
 
 export interface UpdateLatencyDto {
   config: LatencyConfig;
+}
+
+// IP白名單
+export interface IpWhitelist {
+  id: string;
+  ipAddress: string; // IP地址或CIDR格式（如：192.168.1.1 或 192.168.1.0/24）
+  description?: string; // 描述/備註
+  isActive: boolean; // 是否啟用
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateIpWhitelistDto {
+  ipAddress: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateIpWhitelistDto {
+  ipAddress?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface IpWhitelistConfig {
+  enabled: boolean; // 是否啟用IP白名單功能
+}
+
+export interface UpdateIpWhitelistConfigDto {
+  config: IpWhitelistConfig;
 }
 

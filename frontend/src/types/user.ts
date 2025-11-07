@@ -2,15 +2,15 @@ export interface User {
   id: string;
   email: string;
   displayName: string;
-  phoneNumber: string;  // 暂时不显示，但保留字段以备后用
+  phoneNumber: string;  // 暂时不顯示，但保留字段以备后用
   avatar?: string;
-  idCardFront?: string;  // 身份证正面照片 URL
-  idCardBack?: string;   // 身份证反面照片 URL
+  idCardFront?: string;  // 身份證正面照片 URL
+  idCardBack?: string;   // 身份證反面照片 URL
   roles: string[];
   isActive: boolean;
   verificationStatus: 'PENDING' | 'IN_REVIEW' | 'VERIFIED' | 'REJECTED';
   lastLoginAt: string | null;
-  lastLoginIp: string | null;  // 最后登录IP地址
+  lastLoginIp: string | null;  // 最後登入IP地址
   createdAt: string;
   updatedAt: string;
   demoBalance: string;

@@ -8,11 +8,13 @@ import type {
   TradingChannel,
   CustomerServiceConfig,
   LatencyConfig,
+  IpWhitelistConfig,
+  UpdateIpWhitelistConfigDto,
 } from '@/types/settings';
 
 export const settingsService = {
   /**
-   * 获取所有设置
+   * 获取所有設置
    */
   getAll: async (
     api: AxiosInstance,
@@ -25,7 +27,7 @@ export const settingsService = {
   },
 
   /**
-   * 获取单个设置
+   * 获取单個設置
    */
   getOne: async (api: AxiosInstance, key: string): Promise<any> => {
     const response = await api.get(`/admin/settings/${key}`);
@@ -33,7 +35,7 @@ export const settingsService = {
   },
 
   /**
-   * 更新管理员账号
+   * 更新管理員帳號
    */
   updateAdminAccount: async (
     api: AxiosInstance,
@@ -43,7 +45,7 @@ export const settingsService = {
   },
 
   /**
-   * 获取交易渠道设置
+   * 获取交易渠道設置
    */
   getTradingChannels: async (
     api: AxiosInstance,
@@ -53,7 +55,7 @@ export const settingsService = {
   },
 
   /**
-   * 更新交易渠道设置
+   * 更新交易渠道設置
    */
   updateTradingChannels: async (
     api: AxiosInstance,
@@ -63,7 +65,7 @@ export const settingsService = {
   },
 
   /**
-   * 获取客服窗口设置
+   * 获取客服窗口設置
    */
   getCustomerService: async (
     api: AxiosInstance,
@@ -73,7 +75,7 @@ export const settingsService = {
   },
 
   /**
-   * 更新客服窗口设置
+   * 更新客服窗口設置
    */
   updateCustomerService: async (
     api: AxiosInstance,
@@ -83,7 +85,7 @@ export const settingsService = {
   },
 
   /**
-   * 获取延迟设置
+   * 获取延遲設置
    */
   getLatency: async (api: AxiosInstance): Promise<LatencyConfig> => {
     const response = await api.get('/admin/settings/latency');
@@ -91,13 +93,33 @@ export const settingsService = {
   },
 
   /**
-   * 更新延迟设置
+   * 更新延遲設置
    */
   updateLatency: async (
     api: AxiosInstance,
     data: UpdateLatencyDto,
   ): Promise<void> => {
     await api.put('/admin/settings/latency', data);
+  },
+
+  /**
+   * 獲取IP白名單功能設置
+   */
+  getIpWhitelistConfig: async (
+    api: AxiosInstance,
+  ): Promise<IpWhitelistConfig> => {
+    const response = await api.get('/admin/settings/ip-whitelist/config');
+    return response.data.data;
+  },
+
+  /**
+   * 更新IP白名單功能設置
+   */
+  updateIpWhitelistConfig: async (
+    api: AxiosInstance,
+    data: UpdateIpWhitelistConfigDto,
+  ): Promise<void> => {
+    await api.put('/admin/settings/ip-whitelist/config', data);
   },
 };
 

@@ -5,7 +5,7 @@ export type AccountType = 'DEMO' | 'REAL';
 export interface Transaction {
   id: string;
   userId: string;
-  userName?: string;  // 用户名
+  userName?: string;  // 用戶名
   orderNumber: string;
   accountType: AccountType;
   assetType: string;
@@ -24,7 +24,7 @@ export interface Transaction {
   createdAt: string;
   updatedAt: string;
   settledAt: string | null;
-  isManaged?: boolean; // 是否在托管状态下产生的交易
+  isManaged?: boolean; // 是否在托管狀態下产生的交易
 }
 
 export interface PaginatedTransactionsResponse {

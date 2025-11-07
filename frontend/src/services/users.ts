@@ -10,7 +10,7 @@ import type {
 
 export const userService = {
   /**
-   * 获取用户列表
+   * 获取用戶列表
    */
   list: async (
     api: AxiosInstance,
@@ -21,7 +21,7 @@ export const userService = {
   },
 
   /**
-   * 获取单个用户详情
+   * 获取单個用戶详情
    */
   getById: async (api: AxiosInstance, id: string): Promise<User> => {
     const response = await api.get(`/admin/users/${id}`);
@@ -29,7 +29,7 @@ export const userService = {
   },
 
   /**
-   * 更新用户信息
+   * 更新用戶信息
    */
   update: async (
     api: AxiosInstance,
@@ -41,7 +41,7 @@ export const userService = {
   },
 
   /**
-   * 激活用户
+   * 激活用戶
    */
   activate: async (api: AxiosInstance, id: string): Promise<User> => {
     const response = await api.patch(`/admin/users/${id}/activate`);
@@ -49,7 +49,7 @@ export const userService = {
   },
 
   /**
-   * 停用用户
+   * 停用用戶
    */
   deactivate: async (api: AxiosInstance, id: string): Promise<User> => {
     const response = await api.patch(`/admin/users/${id}/deactivate`);
@@ -57,7 +57,7 @@ export const userService = {
   },
 
   /**
-   * 修改用户角色
+   * 修改用戶角色
    */
   updateRoles: async (
     api: AxiosInstance,
@@ -69,7 +69,7 @@ export const userService = {
   },
 
   /**
-   * 调整用户余额
+   * 调整用戶余额
    */
   adjustBalance: async (
     api: AxiosInstance,
@@ -81,7 +81,7 @@ export const userService = {
   },
 
   /**
-   * 删除用户
+   * 刪除用戶
    */
   delete: async (api: AxiosInstance, id: string): Promise<void> => {
     await api.delete(`/admin/users/${id}`);

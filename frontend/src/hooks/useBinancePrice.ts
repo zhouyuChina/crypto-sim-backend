@@ -3,7 +3,7 @@ import { binanceMarketService, type MarketData } from '@/services/market';
 
 export interface UseBinancePriceOptions {
   refreshInterval?: number; // 刷新间隔（毫秒），默认 5000ms
-  enabled?: boolean; // 是否启用自动刷新，默认 true
+  enabled?: boolean; // 是否啟用自動刷新，默认 true
 }
 
 export interface UseBinancePriceResult {
@@ -14,11 +14,11 @@ export interface UseBinancePriceResult {
 }
 
 /**
- * 获取 Binance 市场数据的 React Hook
+ * 获取 Binance 市場數據的 React Hook
  *
- * @param symbol - 交易对符号，如 'BTCUSDT'
+ * @param symbol - 交易對符号，如 'BTCUSDT'
  * @param options - 配置选项
- * @returns 市场数据、加载状态、错误信息和手动刷新函数
+ * @returns 市場數據、載入狀態、错误信息和手动刷新函数
  *
  * @example
  * ```tsx
@@ -65,10 +65,10 @@ export function useBinancePrice(
       await fetchPrice();
     };
 
-    // 立即获取一次数据
+    // 立即获取一次數據
     void fetchData();
 
-    // 设置定时刷新
+    // 設置定时刷新
     if (refreshInterval > 0) {
       intervalId = window.setInterval(fetchData, refreshInterval);
     }
@@ -85,11 +85,11 @@ export function useBinancePrice(
 }
 
 /**
- * 获取多个交易对市场数据的 React Hook
+ * 获取多個交易對市場數據的 React Hook
  *
- * @param symbols - 交易对符号数组
+ * @param symbols - 交易對符号数组
  * @param options - 配置选项
- * @returns 市场数据数组、加载状态、错误信息和手动刷新函数
+ * @returns 市場數據数组、載入狀態、错误信息和手动刷新函数
  */
 export interface UseMultipleBinancePricesResult {
   data: MarketData[] | null;
@@ -111,10 +111,22 @@ export function useMultipleBinancePrices(
   const fetchPrices = useCallback(async () => {
     try {
       setError(null);
+      setLoading(true);
       const marketData = await binanceMarketService.getMultipleMarketData(symbols);
-      setData(marketData);
+      
+      // 如果沒有任何數據返回，設置錯誤
+      if (marketData.length === 0 && symbols.length > 0) {
+        setError(new Error('無法獲取任何交易對數據，請檢查交易對是否有效'));
+      } else {
+        setData(marketData);
+        // 如果有部分失敗，但不影響顯示成功的數據
+        if (marketData.length < symbols.length) {
+          console.warn(`部分交易對載入失敗: ${marketData.length}/${symbols.length} 成功`);
+        }
+      }
     } catch (err) {
       setError(err as Error);
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -131,10 +143,10 @@ export function useMultipleBinancePrices(
       await fetchPrices();
     };
 
-    // 立即获取一次数据
+    // 立即获取一次數據
     void fetchData();
 
-    // 设置定时刷新
+    // 設置定时刷新
     if (refreshInterval > 0) {
       intervalId = window.setInterval(fetchData, refreshInterval);
     }

@@ -13,6 +13,7 @@ import { MoreHorizontal, ChevronUp, ChevronDown, Pencil, UserX, UserCheck, Trash
 import { useAuth } from '@/hooks/useAuth';
 import { userService } from '@/services/users';
 import type { User, QueryUsersParams } from '@/types/user';
+import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -99,12 +100,12 @@ export const UsersPage = () => {
   const columns: ColumnDef<User>[] = [
     {
       accessorKey: 'email',
-      header: '邮箱',
+      header: '郵箱',
       cell: ({ row }) => <div className="font-medium">{row.getValue('email')}</div>,
     },
     {
       accessorKey: 'displayName',
-      header: '显示名称',
+      header: '顯示名稱',
     },
     // 暂时注释掉手机号列，以后可能会用到
     // {
@@ -129,26 +130,29 @@ export const UsersPage = () => {
     },
     {
       accessorKey: 'isActive',
-      header: '状态',
+      header: '狀態',
       cell: ({ row }) => {
         const isActive = row.getValue('isActive');
         return (
           <Badge variant={isActive ? 'success' : 'destructive'}>
-            {isActive ? '活跃' : '停用'}
+            {isActive ? '活躍' : '停用'}
           </Badge>
         );
+      },
+      meta: {
+        minWidth: '90px',
       },
     },
     {
       accessorKey: 'verificationStatus',
-      header: '身份验证',
+      header: '身份驗證',
       cell: ({ row }) => {
         const status = row.getValue('verificationStatus') as string;
         const statusConfig = {
-          PENDING: { label: '待审核', variant: 'secondary' as const },
-          IN_REVIEW: { label: '审核中', variant: 'default' as const },
-          VERIFIED: { label: '验证成功', variant: 'success' as const },
-          REJECTED: { label: '验证失败', variant: 'destructive' as const },
+          PENDING: { label: '待審核', variant: 'secondary' as const },
+          IN_REVIEW: { label: '審核中', variant: 'default' as const },
+          VERIFIED: { label: '驗證成功', variant: 'success' as const },
+          REJECTED: { label: '驗證失敗', variant: 'destructive' as const },
         };
         const config = statusConfig[status as keyof typeof statusConfig] || { label: status, variant: 'secondary' as const };
         return (
@@ -160,7 +164,7 @@ export const UsersPage = () => {
     },
     {
       accessorKey: 'demoBalance',
-      header: '模拟余额',
+      header: '模擬餘額',
       cell: ({ row }) => {
         const balance = parseFloat(row.getValue('demoBalance'));
         return <div className="text-right">${balance.toFixed(2)}</div>;
@@ -168,7 +172,7 @@ export const UsersPage = () => {
     },
     {
       accessorKey: 'realBalance',
-      header: '真实余额',
+      header: '真實餘額',
       cell: ({ row }) => {
         const balance = parseFloat(row.getValue('realBalance'));
         return <div className="text-right">${balance.toFixed(2)}</div>;
@@ -176,15 +180,15 @@ export const UsersPage = () => {
     },
     {
       accessorKey: 'lastLoginAt',
-      header: '最后登录',
+      header: '最後登入',
       cell: ({ row }) => {
         const date = row.getValue('lastLoginAt') as string | null;
-        return date ? new Date(date).toLocaleString('zh-CN') : '从未登录';
+        return date ? new Date(date).toLocaleString('zh-CN') : '從未登入';
       },
     },
     {
       accessorKey: 'lastLoginIp',
-      header: '登录IP',
+      header: '登入IP',
       cell: ({ row }) => {
         const ip = row.getValue('lastLoginIp') as string | null;
         return <div className="font-mono text-sm">{ip || '-'}</div>;
@@ -199,14 +203,14 @@ export const UsersPage = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">打开菜单</span>
+                <span className="sr-only">打開菜單</span>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>操作</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => navigator.clipboard.writeText(user.id)}>
-                复制用户 ID
+                複製用戶 ID
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => {
@@ -214,17 +218,17 @@ export const UsersPage = () => {
                 setEditDialogOpen(true);
               }}>
                 <Pencil className="mr-2 h-4 w-4" />
-                编辑
+                編輯
               </DropdownMenuItem>
               {user.isActive ? (
                 <DropdownMenuItem onClick={() => deactivateMutation.mutate(user.id)}>
                   <UserX className="mr-2 h-4 w-4" />
-                  停用用户
+                  停用用戶
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem onClick={() => activateMutation.mutate(user.id)}>
                   <UserCheck className="mr-2 h-4 w-4" />
-                  激活用户
+                  激活用戶
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
@@ -236,7 +240,7 @@ export const UsersPage = () => {
                 }}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                删除用户
+                刪除用戶
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -263,10 +267,10 @@ export const UsersPage = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>用户管理</CardTitle>
+          <CardTitle>用戶管理</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-red-600">加载失败: {(error as Error).message}</div>
+          <div className="text-red-600">載入失敗: {(error as Error).message}</div>
         </CardContent>
       </Card>
     );
@@ -277,11 +281,11 @@ export const UsersPage = () => {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>用户管理</CardTitle>
+            <CardTitle>用戶管理</CardTitle>
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="搜索用户..."
+                placeholder="搜索用戶..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -295,24 +299,30 @@ export const UsersPage = () => {
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="text-muted-foreground">加载中...</div>
+              <div className="text-muted-foreground">載入中...</div>
             </div>
           ) : (
             <>
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-auto">
                 <Table>
                   <TableHeader>
                     {table.getHeaderGroups().map((headerGroup) => (
                       <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <TableHead key={header.id}>
+                        {headerGroup.headers.map((header) => {
+                          const meta = header.column.columnDef.meta as { minWidth?: string } | undefined;
+                          return (
+                            <TableHead 
+                              key={header.id}
+                              style={meta?.minWidth ? { minWidth: meta.minWidth } : undefined}
+                            >
                             {header.isPlaceholder ? null : (
                               <div
-                                className={
+                                  className={cn(
+                                    'whitespace-nowrap',
                                   header.column.getCanSort()
                                     ? 'cursor-pointer select-none flex items-center gap-2'
                                     : ''
-                                }
+                                  )}
                                 onClick={header.column.getToggleSortingHandler()}
                               >
                                 {flexRender(
@@ -320,7 +330,7 @@ export const UsersPage = () => {
                                   header.getContext(),
                                 )}
                                 {header.column.getCanSort() && (
-                                  <span className="ml-2">
+                                    <span className="ml-2 flex-shrink-0">
                                     {header.column.getIsSorted() === 'asc' ? (
                                       <ChevronUp className="h-4 w-4" />
                                     ) : header.column.getIsSorted() === 'desc' ? (
@@ -331,7 +341,8 @@ export const UsersPage = () => {
                               </div>
                             )}
                           </TableHead>
-                        ))}
+                          );
+                        })}
                       </TableRow>
                     ))}
                   </TableHeader>
@@ -339,17 +350,23 @@ export const UsersPage = () => {
                     {table.getRowModel().rows?.length ? (
                       table.getRowModel().rows.map((row) => (
                         <TableRow key={row.id}>
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
+                          {row.getVisibleCells().map((cell) => {
+                            const meta = cell.column.columnDef.meta as { minWidth?: string } | undefined;
+                            return (
+                              <TableCell 
+                                key={cell.id}
+                                style={meta?.minWidth ? { minWidth: meta.minWidth } : undefined}
+                              >
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
-                          ))}
+                            );
+                          })}
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
                         <TableCell colSpan={columns.length} className="h-24 text-center">
-                          没有找到用户
+                          沒有找到用戶
                         </TableCell>
                       </TableRow>
                     )}
@@ -360,7 +377,7 @@ export const UsersPage = () => {
               {/* Pagination */}
               <div className="flex items-center justify-between space-x-2 py-4">
                 <div className="text-sm text-muted-foreground">
-                  共 {data?.total || 0} 个用户，第 {data?.page || 0} / {data?.totalPages || 0} 页
+                  共 {data?.total || 0} 個用戶，第 {data?.page || 0} / {data?.totalPages || 0} 頁
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -369,7 +386,7 @@ export const UsersPage = () => {
                     onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
                     disabled={pagination.page === 1}
                   >
-                    上一页
+                    上一頁
                   </Button>
                   <Button
                     variant="outline"
@@ -377,7 +394,7 @@ export const UsersPage = () => {
                     onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
                     disabled={pagination.page >= (data?.totalPages || 0)}
                   >
-                    下一页
+                    下一頁
                   </Button>
                 </div>
               </div>
@@ -390,10 +407,10 @@ export const UsersPage = () => {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
+            <DialogTitle>確認刪除</DialogTitle>
             <DialogDescription>
-              您确定要删除用户 "{userToDelete?.displayName}" ({userToDelete?.email}) 吗？
-              此操作无法撤销。
+              您確定要刪除用戶 "{userToDelete?.displayName}" ({userToDelete?.email}) 嗎？
+              此操作無法撤銷。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -405,7 +422,7 @@ export const UsersPage = () => {
               onClick={() => userToDelete && deleteMutation.mutate(userToDelete.id)}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? '删除中...' : '确认删除'}
+              {deleteMutation.isPending ? '刪除中...' : '確認刪除'}
             </Button>
           </DialogFooter>
         </DialogContent>

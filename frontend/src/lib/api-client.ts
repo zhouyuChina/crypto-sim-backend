@@ -7,9 +7,10 @@ interface ApiClientOptions {
   getTokens: () => AuthTokens | null;
   onRefresh: (tokens: AuthTokens) => void;
   onLogout: () => void;
+  onForbidden?: () => void;
 }
 
-export const createApiClient = ({ getTokens, onRefresh, onLogout }: ApiClientOptions): AxiosInstance => {
+export const createApiClient = ({ getTokens, onRefresh, onLogout, onForbidden }: ApiClientOptions): AxiosInstance => {
   const instance = axios.create({
     baseURL: appConfig.apiUrl,
     withCredentials: false
@@ -35,6 +36,12 @@ export const createApiClient = ({ getTokens, onRefresh, onLogout }: ApiClientOpt
     response => response,
     async error => {
       const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+      // Handle 403 Forbidden (token expired)
+      if (error.response?.status === 403 && onForbidden) {
+        onForbidden();
+        return Promise.reject(error);
+      }
 
       if (error.response?.status !== 401 || originalRequest._retry) {
         return Promise.reject(error);

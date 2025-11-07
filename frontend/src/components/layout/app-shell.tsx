@@ -5,11 +5,11 @@ import { Header } from './header';
 
 export const AppShell = ({ children }: PropsWithChildren) => {
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col overflow-hidden xs:ml-16 md:ml-56">
         <Header />
-        <main className="flex-1 space-y-6 p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col pt-6 px-6 pb-6 bg-gray-50">{children}</main>
       </div>
     </div>
   );
