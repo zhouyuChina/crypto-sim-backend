@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { userService } from '@/services/users';
 import { appConfig } from '@/config/env';
 import type { User, UpdateUserDto, AdjustBalanceDto } from '@/types/user';
-import { appConfig } from '@/config/env';
+// import { appConfig } from '@/config/env';
 
 import {
   Dialog,
