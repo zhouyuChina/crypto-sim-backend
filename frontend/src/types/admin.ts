@@ -1,7 +1,9 @@
 export interface Admin {
   id: string;
   username: string;
+  email: string;
   displayName?: string;
+  permissions?: string[];
   isActive: boolean;
   lastLoginAt: string | null;
   lastLoginIp: string | null;
@@ -28,14 +30,18 @@ export interface QueryAdminsParams {
 
 export interface CreateAdminDto {
   username: string;
+  email: string;
   password: string;
   displayName?: string;
+  permissions?: string[];
 }
 
 export interface UpdateAdminDto {
   username?: string;
+  email?: string;
   password?: string;
   displayName?: string;
   isActive?: boolean;
+  permissions?: string[];
 }
 

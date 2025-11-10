@@ -16,6 +16,7 @@ import { TransactionsPage } from '@/routes/transactions';
 import { MarketDataPage } from '@/routes/market-data';
 import { UsersPage } from '@/routes/users';
 import { OperatorsPage } from '@/routes/operators';
+import { OperatorCreatePage } from '@/routes/operator-create';
 import { OperatorDetailPage } from '@/routes/operator-detail';
 import { CmsPage } from '@/routes/cms';
 import { SettingsPage } from '@/routes/settings';
@@ -76,6 +77,12 @@ const operatorsRoute = createRoute({
   component: OperatorsPage
 });
 
+const operatorCreateRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/operators/new',
+  component: OperatorCreatePage
+});
+
 const operatorDetailRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: '/operators/$operatorId',
@@ -105,6 +112,7 @@ const appRoutes = appLayoutRoute.addChildren([
   marketDataRoute,
   usersRoute,
   operatorsRoute,
+  operatorCreateRoute,
   operatorDetailRoute,
   cmsRoute,
   settingsRoute

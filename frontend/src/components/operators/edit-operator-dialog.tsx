@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import type { Operator } from '@/types/operator';
 
 import {
@@ -24,30 +25,38 @@ interface EditOperatorDialogProps {
   operator: Operator | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: Partial<Operator>) => void;
+  onSave: (data: {
+    displayName: string;
+    email: string;
+    phoneNumber?: string;
+    isActive: boolean;
+    demoBalance?: number;
+    realBalance?: number;
+  }) => Promise<void> | void;
 }
 
 export const EditOperatorDialog = ({ operator, open, onOpenChange, onSave }: EditOperatorDialogProps) => {
   const [formData, setFormData] = useState({
-    name: '',
+    displayName: '',
     email: '',
-    phone: '',
-    status: 'active' as 'active' | 'inactive',
-    demoAccountBalance: '',
-    realAccountBalance: '',
+    phoneNumber: '',
+    isActive: 'active' as 'active' | 'inactive',
+    demoBalance: '',
+    realBalance: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (operator) {
       setFormData({
-        name: operator.name || '',
+        displayName: operator.displayName || '',
         email: operator.email || '',
-        phone: operator.phone || '',
-        status: operator.status || 'active',
-        demoAccountBalance: operator.demoAccountBalance?.toString() || '',
-        realAccountBalance: operator.realAccountBalance?.toString() || '',
+        phoneNumber: operator.phoneNumber || '',
+        isActive: operator.isActive ? 'active' : 'inactive',
+        demoBalance: operator.demoBalance?.toString() || '',
+        realBalance: operator.realBalance?.toString() || '',
       });
       setErrors({});
     }
@@ -56,8 +65,8 @@ export const EditOperatorDialog = ({ operator, open, onOpenChange, onSave }: Edi
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = '姓名不能為空';
+    if (!formData.displayName.trim()) {
+      newErrors.displayName = '姓名不能為空';
     }
 
     if (!formData.email.trim()) {
@@ -66,31 +75,38 @@ export const EditOperatorDialog = ({ operator, open, onOpenChange, onSave }: Edi
       newErrors.email = '郵箱格式不正確';
     }
 
-    if (formData.demoAccountBalance && isNaN(parseFloat(formData.demoAccountBalance))) {
-      newErrors.demoAccountBalance = '虛擬帳戶餘額必須為數字';
+    if (formData.demoBalance && isNaN(parseFloat(formData.demoBalance))) {
+      newErrors.demoBalance = '虛擬帳戶餘額必須為數字';
     }
 
-    if (formData.realAccountBalance && isNaN(parseFloat(formData.realAccountBalance))) {
-      newErrors.realAccountBalance = '真實帳戶餘額必須為數字';
+    if (formData.realBalance && isNaN(parseFloat(formData.realBalance))) {
+      newErrors.realBalance = '真實帳戶餘額必須為數字';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (!validate()) return;
+  const handleSubmit = async () => {
+    if (!validate() || !operator) return;
 
-    onSave({
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone || undefined,
-      status: formData.status,
-      demoAccountBalance: formData.demoAccountBalance ? parseFloat(formData.demoAccountBalance) : 0,
-      realAccountBalance: formData.realAccountBalance ? parseFloat(formData.realAccountBalance) : 0,
-    });
-
-    onOpenChange(false);
+    setIsSubmitting(true);
+    try {
+      await onSave({
+        displayName: formData.displayName.trim(),
+        email: formData.email.trim(),
+        phoneNumber: formData.phoneNumber.trim() || undefined,
+        isActive: formData.isActive === 'active',
+        demoBalance: formData.demoBalance ? parseFloat(formData.demoBalance) : undefined,
+        realBalance: formData.realBalance ? parseFloat(formData.realBalance) : undefined,
+      });
+      onOpenChange(false);
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || '更新操作員失敗';
+      setErrors({ submit: message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!operator) return null;
@@ -100,20 +116,19 @@ export const EditOperatorDialog = ({ operator, open, onOpenChange, onSave }: Edi
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>編輯操作員</DialogTitle>
-          <DialogDescription>
-            修改操作員 {operator.name} 的資訊
-          </DialogDescription>
+          <DialogDescription>修改操作員 {operator.displayName} 的資訊</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="name">姓名</Label>
             <Input
               id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              value={formData.displayName}
+              onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
               placeholder="請輸入姓名"
+              disabled={isSubmitting}
             />
-            {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
+            {errors.displayName && <p className="text-sm text-red-600">{errors.displayName}</p>}
           </div>
 
           <div className="space-y-2">
@@ -124,25 +139,28 @@ export const EditOperatorDialog = ({ operator, open, onOpenChange, onSave }: Edi
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="請輸入郵箱"
+              disabled={isSubmitting}
             />
             {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">電話</Label>
+            <Label htmlFor="phoneNumber">電話</Label>
             <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              id="phoneNumber"
+              value={formData.phoneNumber}
+              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
               placeholder="請輸入電話（選填）"
+              disabled={isSubmitting}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="status">狀態</Label>
             <Select
-              value={formData.status}
-              onValueChange={(value) => setFormData({ ...formData, status: value as 'active' | 'inactive' })}
+              value={formData.isActive}
+              onValueChange={(value) => setFormData({ ...formData, isActive: value as 'active' | 'inactive' })}
+              disabled={isSubmitting}
             >
               <SelectTrigger id="status">
                 <SelectValue />
@@ -156,42 +174,47 @@ export const EditOperatorDialog = ({ operator, open, onOpenChange, onSave }: Edi
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="demoAccountBalance">虛擬帳戶餘額</Label>
+              <Label htmlFor="demoBalance">虛擬帳戶餘額</Label>
               <Input
-                id="demoAccountBalance"
+                id="demoBalance"
                 type="number"
-                value={formData.demoAccountBalance}
-                onChange={(e) => setFormData({ ...formData, demoAccountBalance: e.target.value })}
+                value={formData.demoBalance}
+                onChange={(e) => setFormData({ ...formData, demoBalance: e.target.value })}
                 placeholder="0"
+                disabled={isSubmitting}
               />
-              {errors.demoAccountBalance && (
-                <p className="text-sm text-red-600">{errors.demoAccountBalance}</p>
+              {errors.demoBalance && (
+                <p className="text-sm text-red-600">{errors.demoBalance}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="realAccountBalance">真實帳戶餘額</Label>
+              <Label htmlFor="realBalance">真實帳戶餘額</Label>
               <Input
-                id="realAccountBalance"
+                id="realBalance"
                 type="number"
-                value={formData.realAccountBalance}
-                onChange={(e) => setFormData({ ...formData, realAccountBalance: e.target.value })}
+                value={formData.realBalance}
+                onChange={(e) => setFormData({ ...formData, realBalance: e.target.value })}
                 placeholder="0"
+                disabled={isSubmitting}
               />
-              {errors.realAccountBalance && (
-                <p className="text-sm text-red-600">{errors.realAccountBalance}</p>
+              {errors.realBalance && (
+                <p className="text-sm text-red-600">{errors.realBalance}</p>
               )}
             </div>
           </div>
         </div>
+        {errors.submit && <p className="px-1 text-sm text-destructive">{errors.submit}</p>}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             取消
           </Button>
-          <Button onClick={handleSubmit}>保存</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            保存
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
-
