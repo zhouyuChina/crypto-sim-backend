@@ -1,17 +1,17 @@
-import { IsString, IsNotEmpty, IsEmail, IsOptional, IsNumber, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsNumber, IsEnum, IsBoolean } from 'class-validator';
 
-export class CreateCustomMemberDto {
+export class UpdateOperatorDto {
   @IsEmail()
-  @IsNotEmpty()
-  email!: string;
+  @IsOptional()
+  email?: string;
 
   @IsString()
-  @IsNotEmpty()
-  displayName!: string;
+  @IsOptional()
+  displayName?: string;
 
   @IsString()
-  @IsNotEmpty()
-  phoneNumber!: string;
+  @IsOptional()
+  phoneNumber?: string;
 
   @IsString()
   @IsOptional()
@@ -28,4 +28,8 @@ export class CreateCustomMemberDto {
   @IsEnum(['PENDING', 'IN_REVIEW', 'VERIFIED', 'REJECTED'])
   @IsOptional()
   verificationStatus?: 'PENDING' | 'IN_REVIEW' | 'VERIFIED' | 'REJECTED';
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }

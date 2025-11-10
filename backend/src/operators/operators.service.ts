@@ -10,22 +10,22 @@ import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import * as bcrypt from 'bcrypt';
 
-import { CreateCustomMemberDto } from './dto/create-custom-member.dto';
-import { UpdateCustomMemberDto } from './dto/update-custom-member.dto';
-import { QueryCustomMembersDto } from './dto/query-custom-members.dto';
+import { CreateOperatorDto } from './dto/create-operator.dto';
+import { UpdateOperatorDto } from './dto/update-operator.dto';
+import { QueryOperatorsDto } from './dto/query-operators.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 
 @Injectable()
-export class CustomMembersService {
-  private readonly logger = new Logger(CustomMembersService.name);
+export class OperatorsService {
+  private readonly logger = new Logger(OperatorsService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * 创建自定义会员
+   * 创建操作员
    */
-  async create(dto: CreateCustomMemberDto, adminId: string) {
+  async create(dto: CreateOperatorDto, adminId: string) {
     // 检查邮箱是否已存在
     const existingEmail = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -44,10 +44,10 @@ export class CustomMembersService {
       throw new ConflictException('该手机号已被使用');
     }
 
-    // 创建自定义会员（使用一个默认密码哈希，因为他们不需要登录）
+    // 创建操作员（使用一个默认密码哈希，因为他们不需要登录）
     const defaultPasswordHash = await bcrypt.hash(`custom_${uuidv4()}`, 12);
 
-    const customMember = await this.prisma.user.create({
+    const operator = await this.prisma.user.create({
       data: {
         email: dto.email,
         displayName: dto.displayName,
@@ -82,22 +82,22 @@ export class CustomMembersService {
       },
     });
 
-    this.logger.log(`自定义会员已创建: ${customMember.email} (ID: ${customMember.id})`);
+    this.logger.log(`操作员已创建: ${operator.email} (ID: ${operator.id})`);
 
     return {
-      ...customMember,
-      demoBalance: Number(customMember.demoBalance),
-      realBalance: Number(customMember.realBalance),
-      accountBalance: Number(customMember.accountBalance),
-      totalProfitLoss: Number(customMember.totalProfitLoss),
-      winRate: Number(customMember.winRate),
+      ...operator,
+      demoBalance: Number(operator.demoBalance),
+      realBalance: Number(operator.realBalance),
+      accountBalance: Number(operator.accountBalance),
+      totalProfitLoss: Number(operator.totalProfitLoss),
+      winRate: Number(operator.winRate),
     };
   }
 
   /**
-   * 获取自定义会员列表
+   * 获取操作员列表
    */
-  async findAll(query: QueryCustomMembersDto) {
+  async findAll(query: QueryOperatorsDto) {
     const {
       page = 1,
       pageSize = 10,
@@ -112,7 +112,7 @@ export class CustomMembersService {
 
     // 构建 where 条件
     const where: Prisma.UserWhereInput = {
-      isCustomMember: true, // 只查询自定义会员
+      isCustomMember: true, // 只查询操作员
     };
 
     // 搜索过滤
@@ -185,7 +185,7 @@ export class CustomMembersService {
   }
 
   /**
-   * 获取单个自定义会员
+   * 获取单个操作员
    */
   async findOne(id: string) {
     const member = await this.prisma.user.findFirst({
@@ -215,7 +215,7 @@ export class CustomMembersService {
     });
 
     if (!member) {
-      throw new NotFoundException('自定义会员不存在');
+      throw new NotFoundException('操作员不存在');
     }
 
     return {
@@ -229,16 +229,16 @@ export class CustomMembersService {
   }
 
   /**
-   * 更新自定义会员
+   * 更新操作员
    */
-  async update(id: string, dto: UpdateCustomMemberDto) {
+  async update(id: string, dto: UpdateOperatorDto) {
     // 检查会员是否存在
     const existingMember = await this.prisma.user.findFirst({
       where: { id, isCustomMember: true },
     });
 
     if (!existingMember) {
-      throw new NotFoundException('自定义会员不存在');
+      throw new NotFoundException('操作员不存在');
     }
 
     // 如果更新邮箱，检查是否冲突
@@ -285,7 +285,7 @@ export class CustomMembersService {
       },
     });
 
-    this.logger.log(`自定义会员已更新: ${updatedMember.email} (ID: ${id})`);
+    this.logger.log(`操作员已更新: ${updatedMember.email} (ID: ${id})`);
 
     return {
       ...updatedMember,
@@ -298,7 +298,7 @@ export class CustomMembersService {
   }
 
   /**
-   * 删除自定义会员
+   * 删除操作员
    */
   async remove(id: string) {
     const member = await this.prisma.user.findFirst({
@@ -306,20 +306,20 @@ export class CustomMembersService {
     });
 
     if (!member) {
-      throw new NotFoundException('自定义会员不存在');
+      throw new NotFoundException('操作员不存在');
     }
 
     await this.prisma.user.delete({
       where: { id },
     });
 
-    this.logger.log(`自定义会员已删除: ${member.email} (ID: ${id})`);
+    this.logger.log(`操作员已删除: ${member.email} (ID: ${id})`);
 
-    return { message: '自定义会员已删除' };
+    return { message: '操作员已删除' };
   }
 
   /**
-   * 为自定义会员创建交易流水
+   * 为操作员创建交易流水
    */
   async createTransaction(memberId: string, dto: CreateTransactionDto) {
     // 检查会员是否存在
@@ -328,7 +328,7 @@ export class CustomMembersService {
     });
 
     if (!member) {
-      throw new NotFoundException('自定义会员不存在');
+      throw new NotFoundException('操作员不存在');
     }
 
     // 生成唯一的订单号
@@ -356,7 +356,7 @@ export class CustomMembersService {
       },
     });
 
-    this.logger.log(`为自定义会员创建交易流水: ${member.email} (订单: ${orderNumber})`);
+    this.logger.log(`为操作员创建交易流水: ${member.email} (订单: ${orderNumber})`);
 
     return {
       ...transaction,
@@ -371,7 +371,7 @@ export class CustomMembersService {
   }
 
   /**
-   * 获取自定义会员的交易流水列表
+   * 获取操作员的交易流水列表
    */
   async getTransactions(
     memberId: string,
@@ -384,7 +384,7 @@ export class CustomMembersService {
     });
 
     if (!member) {
-      throw new NotFoundException('自定义会员不存在');
+      throw new NotFoundException('操作员不存在');
     }
 
     const skip = (page - 1) * pageSize;
