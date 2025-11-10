@@ -1,4 +1,4 @@
-import { BarChart3, ShoppingBag, Users, Settings, Home, FileText, UserCog } from 'lucide-react';
+import { BarChart3, ShoppingBag, Users, Settings, Home, FileText, UserCog, AlarmClock } from 'lucide-react';
 import { Link, useRouterState } from '@tanstack/react-router';
 
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/market-data', label: '市場數據', icon: BarChart3 },
   { to: '/users', label: '用戶', icon: Users },
   { to: '/operators', label: '操作員列表', icon: UserCog },
+  { to: '/opening-settings', label: '開盤設置', icon: AlarmClock },
   { to: '/cms', label: 'CMS 管理', icon: FileText },
   { to: '/settings', label: '設置', icon: Settings }
 ];

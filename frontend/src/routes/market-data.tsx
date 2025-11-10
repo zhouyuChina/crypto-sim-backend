@@ -24,49 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-
-// 39個交易對列表（與交易流水頁面一致）
-const TRADING_PAIRS = [
-  'BTC/USDT',
-  'ETH/USDT',
-  'USDC/USDT',
-  'SOL/USDT',
-  'XRP/USDT',
-  'BNB/USDT',
-  'DOGE/USDT',
-  'ADA/USDT',
-  'LINK/USDT',
-  'BNB/USD',
-  'BNB/EUR',
-  'BNB/TRY',
-  'BNB/BRL',
-  'BNB/AUD',
-  'BTC/USD',
-  'BTC/EUR',
-  'BTC/TRY',
-  'BTC/BRL',
-  'BTC/AUD',
-  'ETH/USD',
-  'ETH/EUR',
-  'ETH/TRY',
-  'ETH/BRL',
-  'ETH/AUD',
-  'SOL/USD',
-  'SOL/EUR',
-  'XRP/USD',
-  'XRP/EUR',
-  'ADA/USD',
-  'ADA/EUR',
-  'DOGE/USD',
-  'DOGE/EUR',
-  'LINK/USD',
-  'LINK/EUR',
-  'BNB/BTC',
-  'BNB/ETH',
-  'BNB/ADA',
-  'BNB/BUSD',
-  'BNB/USDC',
-] as const;
+import { TRADING_PAIRS } from '@/constants/trading-pairs';
 
 /**
  * 將顯示格式的交易對轉換為 Binance API 格式
@@ -89,12 +47,16 @@ export const MarketDataPage = () => {
     return Array.from(selectedPairs).map(toBinanceSymbol);
   }, [selectedPairs]);
 
+  const [comparisonRefreshKey, setComparisonRefreshKey] = useState(0);
+
   const { data, loading, error, refetch } = useMultipleBinancePrices(selectedSymbols, {
     refreshInterval,
   });
 
   const handleRefresh = () => {
-    void refetch();
+    void refetch().finally(() => {
+      setComparisonRefreshKey((prev) => prev + 1);
+    });
   };
 
   const handleTogglePair = (pair: string) => {
@@ -119,9 +81,9 @@ export const MarketDataPage = () => {
     <div className="space-y-6">
       {/* 頁头 */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">市場數據</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">市場數據</h1>
             <p className="text-muted-foreground">即時加密貨幣市場行情（Binance）</p>
           </div>
           {/* 大屏幕（>=640px）：篩選器在右側 */}
@@ -142,6 +104,7 @@ export const MarketDataPage = () => {
                 <SelectValue placeholder="選擇刷新間隔" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="1000">1秒刷新</SelectItem>
                 <SelectItem value="3000">3秒刷新</SelectItem>
                 <SelectItem value="5000">5秒刷新</SelectItem>
                 <SelectItem value="10000">10秒刷新</SelectItem>
@@ -173,6 +136,7 @@ export const MarketDataPage = () => {
               <SelectValue placeholder="選擇刷新間隔" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="1000">1秒刷新</SelectItem>
               <SelectItem value="3000">3秒刷新</SelectItem>
               <SelectItem value="5000">5秒刷新</SelectItem>
               <SelectItem value="10000">10秒刷新</SelectItem>
@@ -254,24 +218,27 @@ export const MarketDataPage = () => {
                 <MarketDataTable data={data} />
               </CardContent>
             </Card>
-            {/* 说明信息 */}
-            <Card>
-              <CardHeader>
+      {/* 说明信息 */}
+      <Card>
+        <CardHeader>
                 <CardTitle className="text-base">數據來源</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                <ul className="list-inside list-disc space-y-1">
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          <ul className="list-inside list-disc space-y-1">
                   <li>數據來源: Binance API</li>
                   <li>更新頻率: 根據設置自動刷新（支持 3秒/5秒/10秒）</li>
                   <li>數據包含: 即時價格、24小時漲跌幅、最高/最低價、交易量</li>
                   <li>注意: 顯示價格僅供參考，實際交易以交易所即時價格為準</li>
-                </ul>
-              </CardContent>
-            </Card>
+          </ul>
+        </CardContent>
+      </Card>
           </TabsContent>
 
-          <TabsContent value="comparison" className="space-y-4">
-            <DataComparison />
+          <TabsContent value="comparison">
+            <DataComparison
+              refreshToken={comparisonRefreshKey}
+              refreshInterval={refreshInterval}
+            />
           </TabsContent>
         </Tabs>
       )}

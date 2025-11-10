@@ -522,14 +522,14 @@ export const SettingsPage = () => {
 
         {/* 管理員帳號設置 */}
         <TabsContent value="admin">
-          <Card>
-            <CardHeader>
+    <Card>
+      <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>管理員帳號管理</CardTitle>
-                  <CardDescription>
+              <CardDescription>
                     管理系統管理員帳號，可以新增、編輯和刪除管理員
-                  </CardDescription>
+              </CardDescription>
                 </div>
                 <Button
                   onClick={() => {
@@ -542,10 +542,10 @@ export const SettingsPage = () => {
                   新增管理員
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
+      </CardHeader>
+      <CardContent>
               <div className="mb-4">
-                <Input
+                  <Input
                   type="text"
                   placeholder="搜索管理員..."
                   value={adminSearch}
@@ -554,8 +554,8 @@ export const SettingsPage = () => {
                     setAdminPagination({ ...adminPagination, page: 1 });
                   }}
                   className="max-w-sm"
-                />
-              </div>
+                  />
+                </div>
               {adminsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="text-muted-foreground">載入中...</div>
@@ -599,7 +599,7 @@ export const SettingsPage = () => {
                                           ) : null}
                                         </span>
                                       )}
-                                    </div>
+                </div>
                                   )}
                                 </TableHead>
                               );
@@ -641,14 +641,14 @@ export const SettingsPage = () => {
                       共 {adminsData?.total || 0} 個管理員，第 {adminsData?.page || 0} / {adminsData?.totalPages || 0} 頁
                     </div>
                     <div className="flex gap-2">
-                      <Button
+                <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setAdminPagination({ ...adminPagination, page: adminPagination.page - 1 })}
                         disabled={adminPagination.page === 1}
-                      >
+                >
                         上一頁
-                      </Button>
+                </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -929,25 +929,25 @@ export const SettingsPage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
+                <div className="space-y-2">
                 <Label htmlFor="userDataDelay">用戶數據延遲</Label>
-                <Input
+                  <Input
                   id="userDataDelay"
-                  type="number"
-                  min="0"
+                    type="number"
+                    min="0"
                   step="0.1"
                   value={latency.userDataDelay}
-                  onChange={(e) =>
-                    setLatency({
-                      ...latency,
+                    onChange={(e) =>
+                      setLatency({
+                        ...latency,
                       userDataDelay: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
+                      })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
                   用戶數據的延遲時間（秒）
-                </p>
-              </div>
+                  </p>
+                </div>
               <Button
                 onClick={handleUpdateLatency}
                 disabled={updateLatencyMutation.isPending}
@@ -1001,7 +1001,7 @@ export const SettingsPage = () => {
                   }}
                   disabled={updateIpWhitelistConfigMutation.isPending}
                 />
-              </div>
+                </div>
 
               {ipWhitelistLoading ? (
                 <div className="flex items-center justify-center py-8">
@@ -1014,7 +1014,7 @@ export const SettingsPage = () => {
               ) : (
                 <>
                   <div className="mb-4">
-                    <Input
+                  <Input
                       type="text"
                       placeholder="搜索IP地址或描述..."
                       value={ipWhitelistSearch}
@@ -1024,7 +1024,7 @@ export const SettingsPage = () => {
                       }}
                       className="max-w-sm"
                     />
-                  </div>
+                </div>
                   <div className="rounded-md border overflow-auto">
                     <Table>
                       <TableHeader>
@@ -1060,7 +1060,7 @@ export const SettingsPage = () => {
                                           ) : null}
                                         </span>
                                       )}
-                                    </div>
+              </div>
                                   )}
                                 </TableHead>
                               );
@@ -1102,14 +1102,14 @@ export const SettingsPage = () => {
                       共 {ipWhitelistData?.total || 0} 條記錄，第 {ipWhitelistData?.page || 0} / {ipWhitelistData?.totalPages || 0} 頁
                     </div>
                     <div className="flex gap-2">
-                      <Button
+              <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setIpWhitelistPagination({ ...ipWhitelistPagination, page: ipWhitelistPagination.page - 1 })}
                         disabled={ipWhitelistPagination.page === 1}
-                      >
+              >
                         上一頁
-                      </Button>
+              </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -1122,8 +1122,8 @@ export const SettingsPage = () => {
                   </div>
                 </>
               )}
-            </CardContent>
-          </Card>
+      </CardContent>
+    </Card>
         </TabsContent>
       </Tabs>
 

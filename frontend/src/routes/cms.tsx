@@ -697,60 +697,60 @@ export const CmsPage = () => {
     return (
       <div className="space-y-4">
         <div className="rounded-md border overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
+        <Table>
+          <TableHeader>
+            <TableRow>
                 <TableHead style={{ minWidth: '100px' }}>名稱</TableHead>
                 <TableHead style={{ minWidth: '120px' }}>稱號</TableHead>
-                <TableHead className="w-24">評價星</TableHead>
+              <TableHead className="w-24">評價星</TableHead>
                 <TableHead style={{ minWidth: '200px' }}>評論內容</TableHead>
                 <TableHead style={{ minWidth: '150px' }}>更新時間</TableHead>
-                <TableHead className="w-32 text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {testimonials.map(testimonial => (
-                <TableRow key={testimonial.id}>
-                  <TableCell className="font-medium">{testimonial.name}</TableCell>
-                  <TableCell>{testimonial.title}</TableCell>
-                  <TableCell>
-                    <span className="font-medium text-amber-500">
-                      {'★'.repeat(testimonial.rating)}
-                    </span>
-                    <span className="ml-1 text-muted-foreground">
-                      {testimonial.rating}/5
-                    </span>
-                  </TableCell>
-                  <TableCell className="max-w-xl whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                    {testimonial.content}
-                  </TableCell>
+              <TableHead className="w-32 text-right">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {testimonials.map(testimonial => (
+              <TableRow key={testimonial.id}>
+                <TableCell className="font-medium">{testimonial.name}</TableCell>
+                <TableCell>{testimonial.title}</TableCell>
+                <TableCell>
+                  <span className="font-medium text-amber-500">
+                    {'★'.repeat(testimonial.rating)}
+                  </span>
+                  <span className="ml-1 text-muted-foreground">
+                    {testimonial.rating}/5
+                  </span>
+                </TableCell>
+                <TableCell className="max-w-xl whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                  {testimonial.content}
+                </TableCell>
                   <TableCell className="text-sm text-muted-foreground whitespace-pre-line">
                     {formatDateTime(testimonial.updatedAt)}
-                  </TableCell>
-                  <TableCell className="flex items-center justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleEdit(testimonial)}
-                    >
-                      <Edit2 className="mr-1 h-4 w-4" />
-                      編輯
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(testimonial)}
-                      disabled={deleteMutation.isPending}
-                    >
-                      <Trash2 className="mr-1 h-4 w-4" />
-                      刪除
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </TableCell>
+                <TableCell className="flex items-center justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleEdit(testimonial)}
+                  >
+                    <Edit2 className="mr-1 h-4 w-4" />
+                    編輯
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => handleDelete(testimonial)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" />
+                    刪除
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
         </div>
       </div>
     );
@@ -776,45 +776,45 @@ export const CmsPage = () => {
     return (
       <div className="space-y-4">
         <div className="rounded-md border overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">排序</TableHead>
-                <TableHead>內容</TableHead>
-                <TableHead className="w-40">更新時間</TableHead>
-                <TableHead className="w-32 text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {carousels.map(item => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.sortOrder}</TableCell>
-                  <TableCell className="max-w-2xl whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                    {item.content}
-                  </TableCell>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-24">排序</TableHead>
+              <TableHead>內容</TableHead>
+              <TableHead className="w-40">更新時間</TableHead>
+              <TableHead className="w-32 text-right">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {carousels.map(item => (
+              <TableRow key={item.id}>
+                <TableCell className="font-medium">{item.sortOrder}</TableCell>
+                <TableCell className="max-w-2xl whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                  {item.content}
+                </TableCell>
                   <TableCell className="text-sm text-muted-foreground whitespace-pre-line">
                     {formatDateTime(item.updatedAt)}
-                  </TableCell>
-                  <TableCell className="flex items-center justify-end gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => handleEditCarousel(item)}>
-                      <Edit2 className="mr-1 h-4 w-4" />
-                      編輯
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleCarouselDelete(item)}
-                      disabled={deleteCarouselMutation.isPending}
-                    >
-                      <Trash2 className="mr-1 h-4 w-4" />
-                      刪除
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </TableCell>
+                <TableCell className="flex items-center justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => handleEditCarousel(item)}>
+                    <Edit2 className="mr-1 h-4 w-4" />
+                    編輯
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => handleCarouselDelete(item)}
+                    disabled={deleteCarouselMutation.isPending}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" />
+                    刪除
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
         </div>
       </div>
     );
@@ -853,7 +853,7 @@ export const CmsPage = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+        <div className="flex h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
             {leaderboard.length === 0 
               ? '暫無排行榜數據，點擊右上角按鈕新增一條吧。'
               : `暫無${leaderboardFilter === 'DAILY' ? '日榜' : leaderboardFilter === 'WEEKLY' ? '週榜' : '月榜'}數據`}
@@ -882,63 +882,63 @@ export const CmsPage = () => {
           </Select>
         </div>
         <div className="rounded-md border overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
+        <Table>
+          <TableHeader>
+            <TableRow>
                 <TableHead className="w-24">類型</TableHead>
                 <TableHead style={{ minWidth: '90px' }}>頭像</TableHead>
                 <TableHead className="w-28">國家/地區</TableHead>
-                <TableHead className="w-32">姓名</TableHead>
-                <TableHead className="w-28">成交筆數</TableHead>
-                <TableHead className="w-24">勝率</TableHead>
-                <TableHead className="w-32">成交金額</TableHead>
-                <TableHead className="w-40">更新時間</TableHead>
-                <TableHead className="w-32 text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+              <TableHead className="w-32">姓名</TableHead>
+              <TableHead className="w-28">成交筆數</TableHead>
+              <TableHead className="w-24">勝率</TableHead>
+              <TableHead className="w-32">成交金額</TableHead>
+              <TableHead className="w-40">更新時間</TableHead>
+              <TableHead className="w-32 text-right">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
               {filteredLeaderboard.map(entry => (
-                <TableRow key={entry.id}>
-                  <TableCell className="font-medium">{leaderboardTypeLabel[entry.type]}</TableCell>
-                  <TableCell>
-                    {entry.avatar ? (
-                      <img
-                        src={entry.avatar}
-                        alt={entry.name}
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">未上传</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{entry.country}</TableCell>
-                  <TableCell>{entry.name}</TableCell>
-                  <TableCell>{entry.tradeCount.toLocaleString()}</TableCell>
-                  <TableCell>{entry.winRate.toFixed(2)}%</TableCell>
+              <TableRow key={entry.id}>
+                <TableCell className="font-medium">{leaderboardTypeLabel[entry.type]}</TableCell>
+                <TableCell>
+                  {entry.avatar ? (
+                    <img
+                      src={entry.avatar}
+                      alt={entry.name}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">未上传</span>
+                  )}
+                </TableCell>
+                <TableCell>{entry.country}</TableCell>
+                <TableCell>{entry.name}</TableCell>
+                <TableCell>{entry.tradeCount.toLocaleString()}</TableCell>
+                <TableCell>{entry.winRate.toFixed(2)}%</TableCell>
                   <TableCell>${entry.volume.toLocaleString()} USDT</TableCell>
                   <TableCell className="text-sm text-muted-foreground whitespace-pre-line">
                     {formatDateTime(entry.updatedAt)}
-                  </TableCell>
-                  <TableCell className="flex items-center justify-end gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => handleEditLeaderboard(entry)}>
-                      <Edit2 className="mr-1 h-4 w-4" />
-                      編輯
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleLeaderboardDelete(entry)}
-                      disabled={deleteLeaderboardMutation.isPending}
-                    >
-                      <Trash2 className="mr-1 h-4 w-4" />
-                      刪除
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </TableCell>
+                <TableCell className="flex items-center justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => handleEditLeaderboard(entry)}>
+                    <Edit2 className="mr-1 h-4 w-4" />
+                    編輯
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => handleLeaderboardDelete(entry)}
+                    disabled={deleteLeaderboardMutation.isPending}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" />
+                    刪除
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
         </div>
       </div>
     );
@@ -964,43 +964,43 @@ export const CmsPage = () => {
     return (
       <div className="space-y-4">
         <div className="rounded-md border overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
+        <Table>
+          <TableHeader>
+            <TableRow>
                 <TableHead className="w-40">交易時長 (秒)</TableHead>
                 <TableHead className="w-32">盈利率 (%)</TableHead>
-                <TableHead className="w-40">更新時間</TableHead>
-                <TableHead className="w-32 text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tradingPerformance.map(entry => (
-                <TableRow key={entry.id}>
-                  <TableCell className="font-medium">{entry.tradeDuration}</TableCell>
-                  <TableCell>{entry.winRate.toFixed(2)}%</TableCell>
+              <TableHead className="w-40">更新時間</TableHead>
+              <TableHead className="w-32 text-right">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tradingPerformance.map(entry => (
+              <TableRow key={entry.id}>
+                <TableCell className="font-medium">{entry.tradeDuration}</TableCell>
+                <TableCell>{entry.winRate.toFixed(2)}%</TableCell>
                   <TableCell className="text-sm text-muted-foreground whitespace-pre-line">
                     {formatDateTime(entry.updatedAt)}
-                  </TableCell>
-                  <TableCell className="flex items-center justify-end gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => handleEditPerformance(entry)}>
-                      <Edit2 className="mr-1 h-4 w-4" />
-                      編輯
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handlePerformanceDelete(entry)}
-                      disabled={deletePerformanceMutation.isPending}
-                    >
-                      <Trash2 className="mr-1 h-4 w-4" />
-                      刪除
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </TableCell>
+                <TableCell className="flex items-center justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => handleEditPerformance(entry)}>
+                    <Edit2 className="mr-1 h-4 w-4" />
+                    編輯
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => handlePerformanceDelete(entry)}
+                    disabled={deletePerformanceMutation.isPending}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" />
+                    刪除
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
         </div>
       </div>
     );

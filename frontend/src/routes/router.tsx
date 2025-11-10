@@ -20,6 +20,7 @@ import { OperatorCreatePage } from '@/routes/operator-create';
 import { OperatorDetailPage } from '@/routes/operator-detail';
 import { CmsPage } from '@/routes/cms';
 import { SettingsPage } from '@/routes/settings';
+import { OpeningSettingsPage } from '@/routes/opening-settings';
 import { useAuth } from '@/hooks/useAuth';
 
 const rootRoute = createRootRouteWithContext<{ auth: ReturnType<typeof useAuth> }>()({
@@ -89,6 +90,12 @@ const operatorDetailRoute = createRoute({
   component: OperatorDetailPage
 });
 
+const openingSettingsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/opening-settings',
+  component: OpeningSettingsPage
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: '/settings',
@@ -114,6 +121,7 @@ const appRoutes = appLayoutRoute.addChildren([
   operatorsRoute,
   operatorCreateRoute,
   operatorDetailRoute,
+  openingSettingsRoute,
   cmsRoute,
   settingsRoute
 ]);

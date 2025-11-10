@@ -15,48 +15,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { settingsService } from '@/services/settings';
 import { binanceMarketService, type HistoricalPriceData } from '@/services/market';
 import { RefreshCw } from 'lucide-react';
+import { TRADING_PAIRS } from '@/constants/trading-pairs';
 
-// 39個交易對列表
-const TRADING_PAIRS = [
-  'BTC/USDT',
-  'ETH/USDT',
-  'USDC/USDT',
-  'SOL/USDT',
-  'XRP/USDT',
-  'BNB/USDT',
-  'DOGE/USDT',
-  'ADA/USDT',
-  'LINK/USDT',
-  'BNB/USD',
-  'BNB/EUR',
-  'BNB/TRY',
-  'BNB/BRL',
-  'BNB/AUD',
-  'BTC/USD',
-  'BTC/EUR',
-  'BTC/TRY',
-  'BTC/BRL',
-  'BTC/AUD',
-  'ETH/USD',
-  'ETH/EUR',
-  'ETH/TRY',
-  'ETH/BRL',
-  'ETH/AUD',
-  'SOL/USD',
-  'SOL/EUR',
-  'XRP/USD',
-  'XRP/EUR',
-  'ADA/USD',
-  'ADA/EUR',
-  'DOGE/USD',
-  'DOGE/EUR',
-  'LINK/USD',
-  'LINK/EUR',
-  'BNB/BTC',
-  'BNB/ETH',
-  'BNB/ADA',
-  'BNB/BUSD',
-  'BNB/USDC',
+const TIME_INTERVAL_OPTIONS = [
+  { label: '每秒', value: '1' },
+  { label: '30 秒', value: '30' },
+  { label: '60 秒', value: '60' },
+  { label: '90 秒', value: '90' },
+  { label: '120 秒', value: '120' },
+  { label: '150 秒', value: '150' },
+  { label: '180 秒', value: '180' }
 ] as const;
 
 /**
@@ -102,187 +70,55 @@ const parseDateTime = (dateTimeString: string): number => {
   return new Date(dateTimeString).getTime();
 };
 
-interface TimeAxisProps {
-  data: HistoricalPriceData[];
-  selectedTime: number | null;
-  onTimeSelect: (timestamp: number) => void;
-  label: string;
-  timeRange: { start: number; end: number };
-  useDisplayTimestamp?: boolean; // 是否使用顯示時間戳（用於歷史數據）
-}
-
-const TimeAxis = ({ data, selectedTime, onTimeSelect, label, timeRange, useDisplayTimestamp = false }: TimeAxisProps) => {
-  const [hoverTime, setHoverTime] = useState<number | null>(null);
-
-  // 找到當前選中或懸停的數據點
-  const currentData = useMemo(() => {
-    const time = hoverTime || selectedTime;
-    if (!time || data.length === 0) return null;
-    
-    // 找到包含該時間點的 K 線（1分鐘間隔）
-    // K 線時間戳是該分鐘的開始時間
-    const klineTime = Math.floor(time / 60000) * 60000; // 向下取整到分鐘
-    
-    // 如果使用顯示時間戳（歷史數據），需要找到對應的數據
-    if (useDisplayTimestamp) {
-      return data.find((d: any) => {
-        const displayTime = d.displayTimestamp || d.timestamp;
-        return Math.floor(displayTime / 60000) * 60000 === klineTime;
-      }) || data.reduce((prev: any, curr: any) => {
-        const prevDisplay = prev.displayTimestamp || prev.timestamp;
-        const currDisplay = curr.displayTimestamp || curr.timestamp;
-        return Math.abs(currDisplay - klineTime) < Math.abs(prevDisplay - klineTime) ? curr : prev;
-      });
-    }
-    
-    return data.find(d => d.timestamp === klineTime) || data.reduce((prev, curr) => {
-      return Math.abs(curr.timestamp - klineTime) < Math.abs(prev.timestamp - klineTime) ? curr : prev;
-    });
-  }, [data, hoverTime, selectedTime, useDisplayTimestamp]);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    const time = timeRange.start + (timeRange.end - timeRange.start) * percentage;
-    setHoverTime(time);
-  };
-
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    const time = timeRange.start + (timeRange.end - timeRange.start) * percentage;
-    onTimeSelect(time);
-  };
-
-  const handleMouseLeave = () => {
-    setHoverTime(null);
-  };
-
-  // 計算時間軸刻度
-  const ticks = useMemo(() => {
-    const tickCount = 10;
-    const ticks: number[] = [];
-    const interval = (timeRange.end - timeRange.start) / tickCount;
-    for (let i = 0; i <= tickCount; i++) {
-      ticks.push(timeRange.start + interval * i);
-    }
-    return ticks;
-  }, [timeRange]);
-
-  const indicatorPosition = selectedTime
-    ? ((selectedTime - timeRange.start) / (timeRange.end - timeRange.start)) * 100
-    : null;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-base font-semibold">{label}</Label>
-        {currentData && (
-          <div className="text-sm text-muted-foreground">
-            {formatTime(useDisplayTimestamp ? ((currentData as any).displayTimestamp || currentData.timestamp) : currentData.timestamp)} - 價格: ${currentData.price.toLocaleString()}
-          </div>
-        )}
-      </div>
-      
-      <div
-        className="relative h-32 bg-muted rounded-lg cursor-crosshair"
-        onMouseMove={handleMouseMove}
-        onClick={handleClick}
-        onMouseLeave={handleMouseLeave}
-      >
-        {/* 時間軸刻度 */}
-        <div className="absolute inset-0 flex items-end">
-          {ticks.map((tick, index) => (
-            <div
-              key={index}
-              className="absolute bottom-0 h-full border-l border-border"
-              style={{ left: `${(index / ticks.length) * 100}%` }}
-            >
-              <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-muted-foreground whitespace-nowrap">
-                {formatTime(tick)}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* 選中時間指示器 */}
-        {indicatorPosition !== null && (
-          <div
-            className="absolute top-0 bottom-0 w-0.5 bg-primary z-10"
-            style={{ left: `${indicatorPosition}%` }}
-          >
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded whitespace-nowrap">
-              {selectedTime ? formatTime(selectedTime) : ''}
-            </div>
-          </div>
-        )}
-
-        {/* 懸停指示器 */}
-        {hoverTime && hoverTime !== selectedTime && (
-          <div
-            className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/50 z-5"
-            style={{
-              left: `${((hoverTime - timeRange.start) / (timeRange.end - timeRange.start)) * 100}%`,
-            }}
-          />
-        )}
-
-        {/* 價格線圖（簡化版） */}
-        <svg className="absolute inset-0 w-full h-full">
-          {data.length > 1 && (
-            <polyline
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              points={data
-                .map((d: any) => {
-                  const timestamp = useDisplayTimestamp ? (d.displayTimestamp || d.timestamp) : d.timestamp;
-                  const x = ((timestamp - timeRange.start) / (timeRange.end - timeRange.start)) * 100;
-                  const priceRange = Math.max(...data.map((d: any) => d.price)) - Math.min(...data.map((d: any) => d.price));
-                  const y = priceRange > 0
-                    ? 100 - ((d.price - Math.min(...data.map((d: any) => d.price))) / priceRange) * 100
-                    : 50;
-                  return `${x},${y}`;
-                })
-                .join(' ')}
-            />
-          )}
-        </svg>
-      </div>
-    </div>
-  );
+const formatListTime = (timestamp: number): string => {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('zh-TW', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
 };
 
-export const DataComparison = () => {
+const formatPrice = (price: number): string => {
+  return price.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6
+  });
+};
+
+
+interface DataComparisonProps {
+  refreshToken?: number;
+  refreshInterval?: number;
+}
+
+export const DataComparison = ({ refreshToken = 0, refreshInterval = 0 }: DataComparisonProps) => {
   const { api } = useAuth();
   
   // 實際使用的篩選器狀態（用於數據查詢）
   const [selectedPair, setSelectedPair] = useState<string>('BTC/USDT');
   const [delayTime, setDelayTime] = useState<number>(30);
+  const [timeInterval, setTimeInterval] = useState<number>(30);
   const [startTime, setStartTime] = useState<string>(() => {
     const now = new Date();
     now.setHours(now.getHours() - 1);
     return formatDateTime(now);
   });
-  const [endTime, setEndTime] = useState<string>(() => {
-    return formatDateTime(new Date());
-  });
-  
+  const [durationMinutes, setDurationMinutes] = useState<number>(60);
+  const [selectedRealTime, setSelectedRealTime] = useState<number | null>(null);
+  const [selectedHistoricalTime, setSelectedHistoricalTime] = useState<number | null>(null);
+
   // 臨時篩選器狀態（用於輸入，點擊套用後才會更新實際狀態）
   const [tempSelectedPair, setTempSelectedPair] = useState<string>('BTC/USDT');
   const [tempDelayTimeInput, setTempDelayTimeInput] = useState<string>('30');
+  const [tempTimeInterval, setTempTimeInterval] = useState<string>('30');
   const [tempStartTime, setTempStartTime] = useState<string>(() => {
     const now = new Date();
     now.setHours(now.getHours() - 1);
     return formatDateTime(now);
   });
-  const [tempEndTime, setTempEndTime] = useState<string>(() => {
-    return formatDateTime(new Date());
-  });
-  const [selectedRealTime, setSelectedRealTime] = useState<number | null>(null);
-  const [selectedHistoricalTime, setSelectedHistoricalTime] = useState<number | null>(null);
+  const [tempDurationMinutes, setTempDurationMinutes] = useState<string>('60');
 
   // 獲取延遲設置
   const { data: latencyConfig } = useQuery({
@@ -313,11 +149,22 @@ export const DataComparison = () => {
       setTempDelayTimeInput('30');
     }
     
+    // 處理時間間隔
+    const intervalValue = parseInt(tempTimeInterval, 10);
+    const allowedIntervals = TIME_INTERVAL_OPTIONS.map(option => parseInt(option.value, 10));
+    if (!isNaN(intervalValue) && allowedIntervals.includes(intervalValue)) {
+      setTimeInterval(intervalValue);
+    } else {
+      setTimeInterval(30);
+      setTempTimeInterval('30');
+    }
+
+    const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
+
     // 處理開始時間
     const startValue = tempStartTime.trim();
-    const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
     if (dateTimeRegex.test(startValue)) {
-      const finalStartTime = startValue.match(/:\d{2}$/) ? startValue : startValue + ':00';
+      const finalStartTime = startValue.match(/:\d{2}$/) ? startValue : `${startValue}:00`;
       setStartTime(finalStartTime);
     } else {
       const date = new Date(startValue);
@@ -326,72 +173,74 @@ export const DataComparison = () => {
       }
     }
     
-    // 處理結束時間
-    const endValue = tempEndTime.trim();
-    if (dateTimeRegex.test(endValue)) {
-      const finalEndTime = endValue.match(/:\d{2}$/) ? endValue : endValue + ':00';
-      setEndTime(finalEndTime);
+    // 處理顯示時長
+    const durationValue = parseInt(tempDurationMinutes, 10);
+    if (!isNaN(durationValue) && durationValue > 0) {
+      setDurationMinutes(durationValue);
     } else {
-      const date = new Date(endValue);
-      if (!isNaN(date.getTime())) {
-        setEndTime(formatDateTime(date));
-      }
+      setDurationMinutes(60);
+      setTempDurationMinutes('60');
     }
+
+    setSelectedRealTime(null);
+    setSelectedHistoricalTime(null);
   };
   
   // 重置篩選器
   const handleResetFilters = () => {
     setTempSelectedPair(selectedPair);
     setTempDelayTimeInput(delayTime.toString());
+    setTempTimeInterval(timeInterval.toString());
     setTempStartTime(startTime);
-    setTempEndTime(endTime);
+    setTempDurationMinutes(durationMinutes.toString());
   };
 
   // 計算時間範圍
   const timeRange = useMemo(() => {
     const start = parseDateTime(startTime);
-    const end = parseDateTime(endTime);
+    const durationMs = Math.max(durationMinutes, 1) * 60 * 1000;
+    const end = start + durationMs;
     return { start, end };
-  }, [startTime, endTime]);
-  
-  // 計算即時數據的時間範圍（前1小時到現在）
-  // 使用 useState 和 useEffect 來動態更新時間範圍
-  const [realTimeRange, setRealTimeRange] = useState(() => {
-    const now = Date.now();
-    const oneHourAgo = now - 60 * 60 * 1000; // 前1小時
-    return { start: oneHourAgo, end: now };
-  });
-  
-  // 每5秒更新時間範圍的結束時間（避免頻繁閃爍）
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const oneHourAgo = now - 60 * 60 * 1000;
-      setRealTimeRange({ start: oneHourAgo, end: now });
-    }, 5000); // 每5秒更新一次
-    
-    return () => clearInterval(interval);
-  }, []);
+  }, [startTime, durationMinutes]);
 
   // 獲取即時數據（前1小時到現在，每5秒刷新）
-  const { data: realTimeData, isLoading: realTimeLoading } = useQuery({
-    queryKey: ['binance-klines-realtime', toBinanceSymbol(selectedPair), realTimeRange.start, realTimeRange.end],
+  const {
+    data: realTimeData,
+    isLoading: realTimeLoading,
+    isFetching: isFetchingRealTime,
+  } = useQuery({
+    queryKey: [
+      'binance-klines-realtime',
+      toBinanceSymbol(selectedPair),
+      timeRange.start,
+      timeRange.end,
+      refreshToken,
+    ],
     queryFn: async () => {
       return await binanceMarketService.getKlines(
         toBinanceSymbol(selectedPair),
         '1m',
-        realTimeRange.start,
-        realTimeRange.end
+        timeRange.start,
+        timeRange.end
       );
     },
     enabled: !!selectedPair,
-    refetchInterval: 5000, // 每5秒刷新，避免頻繁閃爍
-    refetchIntervalInBackground: true, // 後台也繼續刷新
+    refetchInterval: false,
   });
 
   // 獲取整個時間範圍的歷史數據（用於下時間軸）
-  const { data: allHistoricalData, isLoading: historicalLoading } = useQuery({
-    queryKey: ['binance-klines', toBinanceSymbol(selectedPair), timeRange.start, timeRange.end],
+  const {
+    data: allHistoricalData,
+    isLoading: historicalLoading,
+    isFetching: isFetchingHistorical,
+  } = useQuery({
+    queryKey: [
+      'binance-klines',
+      toBinanceSymbol(selectedPair),
+      timeRange.start,
+      timeRange.end,
+      refreshToken,
+    ],
     queryFn: async () => {
       return await binanceMarketService.getKlines(
         toBinanceSymbol(selectedPair),
@@ -401,35 +250,74 @@ export const DataComparison = () => {
       );
     },
     enabled: !!selectedPair && timeRange.start < timeRange.end,
+    refetchInterval: false,
   });
 
-  // 計算歷史數據（下時間軸）：根據延遲時間調整時間戳
-  // 歷史數據的時間軸顯示的是「延遲後的時間」，但數據本身是原始時間的數據
-  const historicalData = useMemo(() => {
-    if (!allHistoricalData) return [];
-    // 創建一個映射，將原始時間戳映射到延遲後的時間戳
-    return allHistoricalData.map(d => ({
-      ...d,
-      displayTimestamp: d.timestamp + delayTime * 1000, // 顯示時間（加上延遲）
-      originalTimestamp: d.timestamp, // 原始時間戳
-    }));
-  }, [allHistoricalData, delayTime]);
+  const combinedRows = useMemo(() => {
+    if (!realTimeData || realTimeData.length === 0) return [];
 
-  // 當選中即時時間時，計算對應的歷史時間
-  useEffect(() => {
-    if (selectedRealTime !== null && delayTime > 0) {
-      const historicalTime = selectedRealTime - delayTime * 1000;
-      setSelectedHistoricalTime(historicalTime);
-    }
-  }, [selectedRealTime, delayTime]);
+    const sortedReal = [...realTimeData].sort((a, b) => a.timestamp - b.timestamp);
+    const historicalData = allHistoricalData ?? [];
+    const sortedHistorical = [...historicalData].sort((a, b) => a.timestamp - b.timestamp);
 
-  // 當選中歷史時間時，計算對應的即時時間
-  useEffect(() => {
-    if (selectedHistoricalTime !== null && delayTime > 0) {
-      const realTime = selectedHistoricalTime + delayTime * 1000;
-      setSelectedRealTime(realTime);
+    const rows: Array<{
+      time: number;
+      real: HistoricalPriceData;
+      historical: (HistoricalPriceData & { displayTimestamp: number }) | null;
+    }> = [];
+
+    let realPointer = 0;
+    let historicalPointer = 0;
+
+    const step = timeInterval * 1000;
+    for (let cursor = timeRange.start; cursor <= timeRange.end; cursor += step) {
+      while (realPointer < sortedReal.length && sortedReal[realPointer].timestamp <= cursor) {
+        realPointer++;
+      }
+      const realSample = realPointer > 0 ? sortedReal[realPointer - 1] : undefined;
+      if (!realSample) continue;
+
+      const targetHistoricalTime = cursor - delayTime * 1000;
+      while (
+        historicalPointer < sortedHistorical.length &&
+        sortedHistorical[historicalPointer].timestamp <= targetHistoricalTime
+      ) {
+        historicalPointer++;
+      }
+      const historicalSample =
+        historicalPointer > 0 ? sortedHistorical[historicalPointer - 1] : undefined;
+
+      rows.push({
+        time: cursor,
+        real: realSample,
+        historical: (historicalSample ?? sortedHistorical[0])
+          ? {
+              ...(historicalSample ?? sortedHistorical[0]),
+              displayTimestamp: targetHistoricalTime,
+            }
+          : null,
+      });
     }
-  }, [selectedHistoricalTime, delayTime]);
+
+    return rows;
+  }, [realTimeData, allHistoricalData, delayTime, timeRange, timeInterval]);
+
+  // 當資料更新時，預設選取最新資料
+  useEffect(() => {
+    if (combinedRows.length === 0) return;
+    const latestRow = combinedRows[combinedRows.length - 1];
+    const latestRealTimestamp = latestRow.time;
+    const isOutOfRange =
+      selectedRealTime === null ||
+      selectedRealTime < timeRange.start ||
+      selectedRealTime > timeRange.end;
+    if (isOutOfRange) {
+      setSelectedRealTime(latestRealTimestamp);
+      setSelectedHistoricalTime(latestRow.historical ? latestRow.historical.timestamp : null);
+    } else if (selectedHistoricalTime === null && latestRow.historical) {
+      setSelectedHistoricalTime(latestRow.historical.timestamp);
+    }
+  }, [combinedRows, timeRange, selectedRealTime, selectedHistoricalTime]);
 
   return (
     <div className="space-y-6">
@@ -486,199 +374,161 @@ export const DataComparison = () => {
           </div>
 
           <div className="space-y-2 w-[200px] min-w-[200px]">
-            <Label htmlFor="start-time">開始時間</Label>
-            <Input
-              id="start-time"
-              type="text"
-              placeholder="2025-11-06T18:29:30"
-              value={tempStartTime}
-              onChange={(e) => setTempStartTime(e.target.value)}
-              onBlur={(e) => {
-                const value = e.target.value.trim();
-                // 驗證格式：YYYY-MM-DDTHH:mm:ss
-                const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
-                if (dateTimeRegex.test(value)) {
-                  // 格式正確，確保有秒數
-                  if (!value.match(/:\d{2}$/)) {
-                    // 沒有秒數，添加 :00
-                    setTempStartTime(value + ':00');
-                  } else {
-                    setTempStartTime(value);
-                  }
-                } else {
-                  // 嘗試解析並格式化
-                  const date = new Date(value);
-                  if (!isNaN(date.getTime())) {
-                    setTempStartTime(formatDateTime(date));
-                  } else {
-                    // 如果無法解析，恢復為當前值
-                    setTempStartTime(tempStartTime);
-                  }
-                }
-              }}
-            />
-            <p className="text-xs text-muted-foreground">格式：YYYY-MM-DDTHH:mm:ss</p>
+            <Label htmlFor="time-interval">時間間隔</Label>
+            <Select value={tempTimeInterval} onValueChange={setTempTimeInterval}>
+              <SelectTrigger id="time-interval">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_INTERVAL_OPTIONS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-2 w-[200px] min-w-[200px]">
-            <Label htmlFor="end-time">結束時間</Label>
-            <Input
-              id="end-time"
-              type="text"
-              placeholder="2025-11-06T19:29:30"
-              value={tempEndTime}
-              onChange={(e) => setTempEndTime(e.target.value)}
-              onBlur={(e) => {
-                const value = e.target.value.trim();
-                // 驗證格式：YYYY-MM-DDTHH:mm:ss
-                const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
-                if (dateTimeRegex.test(value)) {
-                  // 格式正確，確保有秒數
-                  if (!value.match(/:\d{2}$/)) {
-                    // 沒有秒數，添加 :00
-                    setTempEndTime(value + ':00');
+          <div className="flex flex-1 flex-wrap gap-4">
+            <div className="space-y-2 flex-1 min-w-[200px]">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="start-time">開始時間</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTempStartTime(formatDateTime(new Date()))}
+                >
+                  當前時間
+                </Button>
+              </div>
+              <Input
+                id="start-time"
+                type="text"
+                placeholder="2025-11-06T18:29:30"
+                value={tempStartTime}
+                onChange={(e) => setTempStartTime(e.target.value)}
+                onBlur={(e) => {
+                  const value = e.target.value.trim();
+                  const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
+                  if (dateTimeRegex.test(value)) {
+                    if (!value.match(/:\d{2}$/)) {
+                      setTempStartTime(value + ':00');
+                    } else {
+                      setTempStartTime(value);
+                    }
                   } else {
-                    setTempEndTime(value);
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime())) {
+                      setTempStartTime(formatDateTime(date));
+                    } else {
+                      setTempStartTime(tempStartTime);
+                    }
                   }
-                } else {
-                  // 嘗試解析並格式化
-                  const date = new Date(value);
-                  if (!isNaN(date.getTime())) {
-                    setTempEndTime(formatDateTime(date));
+                }}
+              />
+              <p className="text-xs text-muted-foreground">格式：YYYY-MM-DDTHH:mm:ss</p>
+            </div>
+
+            <div className="space-y-2 w-[200px] min-w-[200px]">
+              <Label htmlFor="duration-minutes">顯示時間（分鐘）</Label>
+              <Input
+                id="duration-minutes"
+                type="number"
+                min="1"
+                step="1"
+                value={tempDurationMinutes}
+                onChange={(e) => setTempDurationMinutes(e.target.value)}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  const numValue = parseInt(value, 10);
+                  if (value === '' || isNaN(numValue) || numValue <= 0) {
+                    setTempDurationMinutes('60');
                   } else {
-                    // 如果無法解析，恢復為當前值
-                    setTempEndTime(tempEndTime);
+                    setTempDurationMinutes(numValue.toString());
                   }
-                }
-              }}
-            />
-            <p className="text-xs text-muted-foreground">格式：YYYY-MM-DDTHH:mm:ss</p>
+                }}
+              />
+            </div>
           </div>
         </div>
-        <div className="flex gap-2 mt-4">
-          <Button onClick={handleApplyFilters}>套用</Button>
-          <Button onClick={handleResetFilters} variant="outline">重置</Button>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Button onClick={handleApplyFilters} disabled={isFetchingRealTime || isFetchingHistorical}>
+            套用
+          </Button>
+          <Button onClick={handleResetFilters} variant="outline" disabled={isFetchingRealTime || isFetchingHistorical}>
+            重置
+          </Button>
         </div>
       </div>
 
-      {/* 即時數據時間軸 */}
+      {/* 數據列表 */}
       <Card>
-        <CardContent className="pt-6">
-          {realTimeLoading ? (
-            <div className="flex items-center justify-center py-12">
+        <CardHeader>
+          <CardTitle>數據對照</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {combinedRows.length === 0 && (realTimeLoading || historicalLoading) ? (
+            <div className="flex items-center justify-center py-10">
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              <span>載入即時數據...</span>
+              <span>載入數據...</span>
+            </div>
+          ) : combinedRows.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th colSpan={3} className="border-b border-border px-3 py-2 text-left text-muted-foreground">
+                      {new Date(combinedRows[combinedRows.length - 1].time).toLocaleDateString('zh-TW')}
+                    </th>
+                  </tr>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="border-b border-border px-3 py-2 w-32">時間</th>
+                    <th className="border-b border-border px-3 py-2 w-40">即時數據</th>
+                    <th className="border-b border-border px-3 py-2 w-48">歷史數據（延遲 {delayTime} 秒）</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {combinedRows.slice(-120).map(row => {
+                    const { real, historical, time } = row;
+                    const isActive = selectedRealTime !== null && Math.abs(selectedRealTime - time) < 1000;
+                    return (
+                      <tr
+                        key={time}
+                        className={`cursor-pointer transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'hover:bg-accent'}`}
+                        onClick={() => {
+                          setSelectedRealTime(time);
+                          setSelectedHistoricalTime(historical ? historical.timestamp : null);
+                        }}
+                      >
+                        <td className="border-b border-border px-3 py-2 font-medium whitespace-nowrap">
+                          {formatListTime(time)}
+                        </td>
+                        <td className="border-b border-border px-3 py-2 whitespace-nowrap">
+                          ${formatPrice(real.price)}
+                        </td>
+                        <td className="border-b border-border px-3 py-2 whitespace-nowrap">
+                          {historical ? (
+                            <div className="flex flex-col">
+                              <span>${formatPrice(historical.price)}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatListTime(historical.displayTimestamp ?? historical.timestamp)}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">--</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : (
-            <TimeAxis
-              label="即時數據"
-              data={realTimeData || []}
-              selectedTime={selectedRealTime}
-              onTimeSelect={setSelectedRealTime}
-              timeRange={realTimeRange}
-            />
+            <div className="text-center text-sm text-muted-foreground py-6">目前沒有可顯示的數據</div>
           )}
         </CardContent>
       </Card>
-
-      {/* 歷史數據時間軸 */}
-      <Card>
-        <CardContent className="pt-6">
-          {historicalLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              <span>載入歷史數據...</span>
-            </div>
-          ) : (
-            <TimeAxis
-              label={`歷史數據（延遲 ${delayTime} 秒）`}
-              data={historicalData as any}
-              selectedTime={selectedHistoricalTime}
-              onTimeSelect={setSelectedHistoricalTime}
-              timeRange={timeRange}
-              useDisplayTimestamp={true}
-            />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 數據對照顯示 */}
-      {selectedRealTime !== null && (
-        <Card>
-          <CardHeader>
-            <CardTitle>數據對照</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <h3 className="font-semibold mb-2">即時數據</h3>
-                {(() => {
-                  if (!realTimeData || realTimeData.length === 0) {
-                    return <div className="text-muted-foreground">無數據</div>;
-                  }
-                  
-                  // 找到對應的 K 線數據（向下取整到分鐘）
-                  const klineTime = Math.floor(selectedRealTime / 60000) * 60000;
-                  const data = realTimeData.find(d => d.timestamp === klineTime) 
-                    || realTimeData.reduce((prev, curr) => {
-                      return Math.abs(curr.timestamp - klineTime) < Math.abs(prev.timestamp - klineTime)
-                        ? curr
-                        : prev;
-                    }, realTimeData[0]);
-                  
-                  if (!data) {
-                    return <div className="text-muted-foreground">無數據</div>;
-                  }
-                  
-                  return (
-                    <div className="space-y-1 text-sm">
-                      <div>時間: {formatTime(selectedRealTime)}</div>
-                      <div>K線時間: {formatTime(data.timestamp)}</div>
-                      <div>價格: ${data.price.toLocaleString()}</div>
-                      <div>開盤: ${data.open.toLocaleString()}</div>
-                      <div>最高: ${data.high.toLocaleString()}</div>
-                      <div>最低: ${data.low.toLocaleString()}</div>
-                      <div>收盤: ${data.close.toLocaleString()}</div>
-                      <div>交易量: {data.volume.toLocaleString()}</div>
-                    </div>
-                  );
-                })()}
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">歷史數據（延遲 {delayTime} 秒）</h3>
-                {selectedHistoricalTime !== null && (() => {
-                  // 找到對應的原始歷史數據（減去延遲時間）
-                  const originalTime = selectedHistoricalTime - delayTime * 1000;
-                  const klineTime = Math.floor(originalTime / 60000) * 60000; // 向下取整到分鐘
-                  const data = allHistoricalData?.find(d => d.timestamp === klineTime) 
-                    || allHistoricalData?.reduce((prev, curr) => {
-                      return Math.abs(curr.timestamp - klineTime) < Math.abs(prev.timestamp - klineTime)
-                        ? curr
-                        : prev;
-                    }, allHistoricalData?.[0]);
-                  
-                  if (!data) {
-                    return <div className="text-muted-foreground">無數據</div>;
-                  }
-                  
-                  return (
-                    <div className="space-y-1 text-sm">
-                      <div>時間: {formatTime(selectedHistoricalTime)}</div>
-                      <div>原始時間: {formatTime(data.timestamp)}</div>
-                      <div>價格: ${data.price.toLocaleString()}</div>
-                      <div>開盤: ${data.open.toLocaleString()}</div>
-                      <div>最高: ${data.high.toLocaleString()}</div>
-                      <div>最低: ${data.low.toLocaleString()}</div>
-                      <div>收盤: ${data.close.toLocaleString()}</div>
-                      <div>交易量: {data.volume.toLocaleString()}</div>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

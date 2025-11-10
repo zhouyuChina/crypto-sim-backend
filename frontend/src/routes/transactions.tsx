@@ -62,49 +62,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-
-// 交易對列表
-const TRADING_PAIRS = [
-  'BTC/USDT',
-  'ETH/USDT',
-  'USDC/USDT',
-  'SOL/USDT',
-  'XRP/USDT',
-  'BNB/USDT',
-  'DOGE/USDT',
-  'ADA/USDT',
-  'LINK/USDT',
-  'BNB/USD',
-  'BNB/EUR',
-  'BNB/TRY',
-  'BNB/BRL',
-  'BNB/AUD',
-  'BTC/USD',
-  'BTC/EUR',
-  'BTC/TRY',
-  'BTC/BRL',
-  'BTC/AUD',
-  'ETH/USD',
-  'ETH/EUR',
-  'ETH/TRY',
-  'ETH/BRL',
-  'ETH/AUD',
-  'SOL/USD',
-  'SOL/EUR',
-  'XRP/USD',
-  'XRP/EUR',
-  'ADA/USD',
-  'ADA/EUR',
-  'DOGE/USD',
-  'DOGE/EUR',
-  'LINK/USD',
-  'LINK/EUR',
-  'BNB/BTC',
-  'BNB/ETH',
-  'BNB/ADA',
-  'BNB/BUSD',
-  'BNB/USDC',
-];
+import { TRADING_PAIRS } from '@/constants/trading-pairs';
 
 export const TransactionsPage = () => {
   const { api } = useAuth();
