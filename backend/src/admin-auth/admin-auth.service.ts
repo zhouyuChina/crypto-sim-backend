@@ -1,9 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { CreateAdminDto } from './dto/create-admin.dto';
+import { UpdateAdminDto } from './dto/update-admin.dto';
 
 @Injectable()
 export class AdminAuthService {
@@ -103,5 +105,213 @@ export class AdminAuthService {
     }
 
     return admin;
+  }
+
+  // ==================== 管理员管理接口 ====================
+
+  /**
+   * 获取所有管理员列表
+   */
+  async getAllAdmins() {
+    const admins = await this.prisma.admin.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        displayName: true,
+        permissions: true,
+        isActive: true,
+        lastLoginAt: true,
+        lastLoginIp: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return admins;
+  }
+
+  /**
+   * 获取单个管理员详情
+   */
+  async getAdminById(id: string) {
+    const admin = await this.prisma.admin.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        displayName: true,
+        permissions: true,
+        isActive: true,
+        lastLoginAt: true,
+        lastLoginIp: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!admin) {
+      throw new NotFoundException('管理员不存在');
+    }
+
+    return admin;
+  }
+
+  /**
+   * 创建新管理员
+   */
+  async createAdmin(createAdminDto: CreateAdminDto) {
+    const { username, email, password, displayName, permissions } = createAdminDto;
+
+    // 检查用户名是否已存在
+    const existingUsername = await this.prisma.admin.findUnique({
+      where: { username },
+    });
+
+    if (existingUsername) {
+      throw new ConflictException('用户名已存在');
+    }
+
+    // 检查邮箱是否已存在
+    const existingEmail = await this.prisma.admin.findUnique({
+      where: { email },
+    });
+
+    if (existingEmail) {
+      throw new ConflictException('邮箱已存在');
+    }
+
+    // 加密密码
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // 创建管理员
+    const admin = await this.prisma.admin.create({
+      data: {
+        username,
+        email,
+        passwordHash,
+        displayName: displayName || username,
+        permissions: permissions || ['*'], // 默认为超级管理员
+        isActive: true,
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        displayName: true,
+        permissions: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return admin;
+  }
+
+  /**
+   * 更新管理员信息
+   */
+  async updateAdmin(id: string, updateAdminDto: UpdateAdminDto) {
+    // 检查管理员是否存在
+    const existingAdmin = await this.prisma.admin.findUnique({
+      where: { id },
+    });
+
+    if (!existingAdmin) {
+      throw new NotFoundException('管理员不存在');
+    }
+
+    const { username, email, password, displayName, isActive, permissions } = updateAdminDto;
+
+    // 如果更新用户名，检查是否冲突
+    if (username && username !== existingAdmin.username) {
+      const usernameExists = await this.prisma.admin.findUnique({
+        where: { username },
+      });
+
+      if (usernameExists) {
+        throw new ConflictException('用户名已存在');
+      }
+    }
+
+    // 如果更新邮箱，检查是否冲突
+    if (email && email !== existingAdmin.email) {
+      const emailExists = await this.prisma.admin.findUnique({
+        where: { email },
+      });
+
+      if (emailExists) {
+        throw new ConflictException('邮箱已存在');
+      }
+    }
+
+    // 准备更新数据
+    const updateData: any = {};
+
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (displayName) updateData.displayName = displayName;
+    if (typeof isActive === 'boolean') updateData.isActive = isActive;
+    if (permissions) updateData.permissions = permissions;
+
+    // 如果更新密码，需要加密
+    if (password) {
+      updateData.passwordHash = await bcrypt.hash(password, 12);
+    }
+
+    // 更新管理员
+    const admin = await this.prisma.admin.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        displayName: true,
+        permissions: true,
+        isActive: true,
+        lastLoginAt: true,
+        lastLoginIp: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return admin;
+  }
+
+  /**
+   * 删除管理员
+   */
+  async deleteAdmin(id: string) {
+    // 检查管理员是否存在
+    const existingAdmin = await this.prisma.admin.findUnique({
+      where: { id },
+    });
+
+    if (!existingAdmin) {
+      throw new NotFoundException('管理员不存在');
+    }
+
+    // 检查是否是最后一个管理员
+    const adminCount = await this.prisma.admin.count({
+      where: { isActive: true },
+    });
+
+    if (adminCount <= 1) {
+      throw new BadRequestException('无法删除最后一个管理员账户');
+    }
+
+    // 删除管理员
+    await this.prisma.admin.delete({
+      where: { id },
+    });
+
+    return { message: '管理员删除成功' };
   }
 }
