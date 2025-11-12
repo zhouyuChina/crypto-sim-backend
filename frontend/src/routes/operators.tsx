@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
 import {
   useReactTable,
   getCoreRowModel,
@@ -9,10 +8,9 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ArrowRight, Plus } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { operatorService } from '@/services/operators';
-import type { Operator, QueryOperatorsParams } from '@/types/operator';
+import { ChevronUp, ChevronDown, ArrowRight, UserCheck, UserX } from 'lucide-react';
+
+import type { Operator } from '@/types/operator';
 import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,34 +26,97 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
+// 硬編碼的操作員數據
+const MOCK_OPERATORS: Operator[] = [
+  {
+    id: 'op-001',
+    name: '張三',
+    email: 'zhangsan@example.com',
+    phone: '0912-345-678',
+    status: 'active',
+    totalTransactions: 156,
+    totalProfit: 12500.50,
+    demoAccountBalance: 50000,
+    realAccountBalance: 125000,
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-01-20T14:30:00Z',
+  },
+  {
+    id: 'op-002',
+    name: '李四',
+    email: 'lisi@example.com',
+    phone: '0913-456-789',
+    status: 'active',
+    totalTransactions: 89,
+    totalProfit: 8750.25,
+    demoAccountBalance: 35000,
+    realAccountBalance: 98000,
+    createdAt: '2024-02-01T09:00:00Z',
+    updatedAt: '2024-01-21T10:15:00Z',
+  },
+  {
+    id: 'op-003',
+    name: '王五',
+    email: 'wangwu@example.com',
+    phone: '0914-567-890',
+    status: 'inactive',
+    totalTransactions: 234,
+    totalProfit: -3450.75,
+    demoAccountBalance: 20000,
+    realAccountBalance: 45000,
+    createdAt: '2023-12-10T10:00:00Z',
+    updatedAt: '2024-01-18T16:45:00Z',
+  },
+  {
+    id: 'op-004',
+    name: '趙六',
+    email: 'zhaoliu@example.com',
+    phone: '0915-678-901',
+    status: 'active',
+    totalTransactions: 312,
+    totalProfit: 18900.00,
+    demoAccountBalance: 75000,
+    realAccountBalance: 200000,
+    createdAt: '2023-11-20T11:00:00Z',
+    updatedAt: '2024-01-22T09:20:00Z',
+  },
+  {
+    id: 'op-005',
+    name: '孫七',
+    email: 'sunqi@example.com',
+    phone: '0916-789-012',
+    status: 'active',
+    totalTransactions: 67,
+    totalProfit: 5230.80,
+    demoAccountBalance: 28000,
+    realAccountBalance: 72000,
+    createdAt: '2024-02-05T12:00:00Z',
+    updatedAt: '2024-01-23T11:30:00Z',
+  },
+];
+
 export const OperatorsPage = () => {
-  const { api } = useAuth();
   const navigate = useNavigate();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
 
-  // 查询参数
-  const queryParams: QueryOperatorsParams = {
-    page: pagination.page,
-    pageSize: pagination.pageSize,
-    search: search || undefined,
-    sortBy: sorting[0]?.id as any,
-    sortOrder: sorting[0]?.desc ? 'desc' : 'asc',
-  };
-
-  // 获取操作员列表
-  const { data: operatorsData, isLoading, error } = useQuery({
-    queryKey: ['operators', queryParams],
-    queryFn: () => operatorService.list(api, queryParams),
+  // 過濾操作員
+  const filteredOperators = MOCK_OPERATORS.filter((operator) => {
+    if (!search) return true;
+    const searchLower = search.toLowerCase();
+    return (
+      operator.name.toLowerCase().includes(searchLower) ||
+      operator.email.toLowerCase().includes(searchLower) ||
+      operator.phone?.includes(searchLower)
+    );
   });
 
   // 表格欄位
   const columns: ColumnDef<Operator>[] = [
     {
-      accessorKey: 'displayName',
+      accessorKey: 'name',
       header: '姓名',
-      cell: ({ row }) => <div className="font-medium">{row.getValue('displayName')}</div>,
+      cell: ({ row }) => <div className="font-medium">{row.getValue('name')}</div>,
     },
     {
       accessorKey: 'email',
@@ -63,18 +124,18 @@ export const OperatorsPage = () => {
       cell: ({ row }) => <div>{row.getValue('email')}</div>,
     },
     {
-      accessorKey: 'phoneNumber',
+      accessorKey: 'phone',
       header: '電話',
-      cell: ({ row }) => <div>{row.getValue('phoneNumber') || '-'}</div>,
+      cell: ({ row }) => <div>{row.getValue('phone') || '-'}</div>,
     },
     {
-      accessorKey: 'isActive',
+      accessorKey: 'status',
       header: '狀態',
       cell: ({ row }) => {
-        const isActive = row.getValue('isActive');
+        const status = row.getValue('status') as string;
         return (
-          <Badge variant={isActive ? 'success' : 'destructive'}>
-            {isActive ? '啟用' : '停用'}
+          <Badge variant={status === 'active' ? 'success' : 'destructive'}>
+            {status === 'active' ? '啟用' : '停用'}
           </Badge>
         );
       },
@@ -83,10 +144,10 @@ export const OperatorsPage = () => {
       },
     },
     {
-      accessorKey: 'totalTrades',
+      accessorKey: 'totalTransactions',
       header: '交易筆數',
       cell: ({ row }) => {
-        const count = row.getValue('totalTrades') as number;
+        const count = row.getValue('totalTransactions') as number;
         return <div className="text-right">{count}</div>;
       },
       meta: {
@@ -94,38 +155,16 @@ export const OperatorsPage = () => {
       },
     },
     {
-      accessorKey: 'totalProfitLoss',
+      accessorKey: 'totalProfit',
       header: '總收益',
       cell: ({ row }) => {
-        const profit = row.getValue('totalProfitLoss') as number;
+        const profit = row.getValue('totalProfit') as number;
         const isPositive = profit >= 0;
         return (
           <div className={cn('text-right font-medium', isPositive ? 'text-green-600' : 'text-red-600')}>
-            {isPositive ? '+' : ''}${Number(profit).toFixed(2)}
+            {isPositive ? '+' : ''}${profit.toFixed(2)}
           </div>
         );
-      },
-      meta: {
-        minWidth: '120px',
-      },
-    },
-    {
-      accessorKey: 'demoBalance',
-      header: '虛擬餘額',
-      cell: ({ row }) => {
-        const balance = row.getValue('demoBalance') as number;
-        return <div className="text-right">${Number(balance).toFixed(2)}</div>;
-      },
-      meta: {
-        minWidth: '120px',
-      },
-    },
-    {
-      accessorKey: 'realBalance',
-      header: '真實餘額',
-      cell: ({ row }) => {
-        const balance = row.getValue('realBalance') as number;
-        return <div className="text-right font-medium">${Number(balance).toFixed(2)}</div>;
       },
       meta: {
         minWidth: '120px',
@@ -152,7 +191,7 @@ export const OperatorsPage = () => {
 
   // 表格實例
   const table = useReactTable({
-    data: operatorsData?.data || [],
+    data: filteredOperators,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -160,8 +199,6 @@ export const OperatorsPage = () => {
     state: {
       sorting,
     },
-    manualPagination: true,
-    pageCount: operatorsData?.totalPages || 0,
   });
 
   return (
@@ -180,127 +217,86 @@ export const OperatorsPage = () => {
                 type="text"
                 placeholder="搜索操作員..."
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPagination({ ...pagination, page: 1 });
-                }}
+                onChange={(e) => setSearch(e.target.value)}
                 className="w-64"
               />
-              <Button onClick={() => navigate({ to: '/operators/new' })}>
-                <Plus className="mr-2 h-4 w-4" />
-                新增操作員
-              </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-muted-foreground">載入中...</div>
-            </div>
-          ) : error ? (
-            <div className="text-red-600">載入失敗: {(error as Error).message}</div>
-          ) : (
-            <>
-              <div className="rounded-md border overflow-auto">
-                <Table>
-                  <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => {
-                          const meta = header.column.columnDef.meta as { minWidth?: string } | undefined;
-                          return (
-                            <TableHead
-                              key={header.id}
-                              style={meta?.minWidth ? { minWidth: meta.minWidth } : undefined}
-                            >
-                              {header.isPlaceholder ? null : (
-                                <div
-                                  className={cn(
-                                    'whitespace-nowrap',
-                                    header.column.getCanSort()
-                                      ? 'cursor-pointer select-none flex items-center gap-2'
-                                      : ''
-                                  )}
-                                  onClick={header.column.getToggleSortingHandler()}
-                                >
-                                  {flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext(),
-                                  )}
-                                  {header.column.getCanSort() && (
-                                    <span className="ml-2 flex-shrink-0">
-                                      {header.column.getIsSorted() === 'asc' ? (
-                                        <ChevronUp className="h-4 w-4" />
-                                      ) : header.column.getIsSorted() === 'desc' ? (
-                                        <ChevronDown className="h-4 w-4" />
-                                      ) : null}
-                                    </span>
-                                  )}
-                                </div>
+          <div className="rounded-md border overflow-auto">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      const meta = header.column.columnDef.meta as { minWidth?: string } | undefined;
+                      return (
+                        <TableHead
+                          key={header.id}
+                          style={meta?.minWidth ? { minWidth: meta.minWidth } : undefined}
+                        >
+                          {header.isPlaceholder ? null : (
+                            <div
+                              className={cn(
+                                'whitespace-nowrap',
+                                header.column.getCanSort()
+                                  ? 'cursor-pointer select-none flex items-center gap-2'
+                                  : ''
                               )}
-                            </TableHead>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows?.length ? (
-                      table.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                          {row.getVisibleCells().map((cell) => {
-                            const meta = cell.column.columnDef.meta as { minWidth?: string } | undefined;
-                            return (
-                              <TableCell
-                                key={cell.id}
-                                style={meta?.minWidth ? { minWidth: meta.minWidth } : undefined}
-                              >
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                              </TableCell>
-                            );
-                          })}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={columns.length} className="h-24 text-center">
-                          沒有找到操作員
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Pagination */}
-              <div className="flex items-center justify-between space-x-2 py-4">
-                <div className="text-sm text-muted-foreground">
-                  共 {operatorsData?.total || 0} 個操作員，第 {operatorsData?.page || 0} / {operatorsData?.totalPages || 0} 頁
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-                    disabled={pagination.page === 1}
-                  >
-                    上一頁
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-                    disabled={pagination.page >= (operatorsData?.totalPages || 0)}
-                  >
-                    下一頁
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
+                              onClick={header.column.getToggleSortingHandler()}
+                            >
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                              {header.column.getCanSort() && (
+                                <span className="ml-2 flex-shrink-0">
+                                  {header.column.getIsSorted() === 'asc' ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                  ) : header.column.getIsSorted() === 'desc' ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : null}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </TableHead>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => {
+                        const meta = cell.column.columnDef.meta as { minWidth?: string } | undefined;
+                        return (
+                          <TableCell
+                            key={cell.id}
+                            style={meta?.minWidth ? { minWidth: meta.minWidth } : undefined}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      沒有找到操作員
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 };
+

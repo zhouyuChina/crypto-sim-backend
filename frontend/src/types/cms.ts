@@ -65,3 +65,25 @@ export interface TradingPerformancePayload {
   tradeDuration: number;
   winRate: number;
 }
+
+export interface ShareCopySetting {
+  id?: string;
+  content: string;
+  defaultContent?: string;
+  updatedAt?: string;
+}
+
+export interface ShareCopyPayload {
+  content: string;
+}
+
+export interface DepositAddressSetting {
+  id?: string;
+  address: string;
+  defaultAddress?: string;
+  updatedAt?: string;
+}
+
+export interface DepositAddressPayload {
+  address: string;
+}

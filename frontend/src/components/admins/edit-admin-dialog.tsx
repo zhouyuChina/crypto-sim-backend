@@ -30,7 +30,6 @@ export const EditAdminDialog = ({ admin, open, onOpenChange, isCreating = false 
 
   const [formData, setFormData] = useState({
     username: '',
-    email: '',
     password: '',
     displayName: '',
     isActive: true,
@@ -42,7 +41,6 @@ export const EditAdminDialog = ({ admin, open, onOpenChange, isCreating = false 
     if (admin) {
       setFormData({
         username: admin.username,
-        email: admin.email,
         password: '', // 編輯時不預填密碼
         displayName: admin.displayName || '',
         isActive: admin.isActive,
@@ -50,7 +48,6 @@ export const EditAdminDialog = ({ admin, open, onOpenChange, isCreating = false 
     } else {
       setFormData({
         username: '',
-        email: '',
         password: '',
         displayName: '',
         isActive: true,
@@ -100,32 +97,14 @@ export const EditAdminDialog = ({ admin, open, onOpenChange, isCreating = false 
       return;
     }
 
-    if (!formData.email.trim()) {
-      setErrors({ email: '請輸入郵箱' });
-      return;
-    }
-
-    // 簡單的郵箱格式驗證
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setErrors({ email: '請輸入有效的郵箱地址' });
-      return;
-    }
-
     if (isCreating && !formData.password.trim()) {
       setErrors({ password: '請輸入密碼' });
-      return;
-    }
-
-    if (isCreating && formData.password.length < 8) {
-      setErrors({ password: '密碼長度至少為8位' });
       return;
     }
 
     if (isCreating) {
       const createDto: CreateAdminDto = {
         username: formData.username.trim(),
-        email: formData.email.trim(),
         password: formData.password,
         displayName: formData.displayName.trim() || undefined,
       };
@@ -133,16 +112,11 @@ export const EditAdminDialog = ({ admin, open, onOpenChange, isCreating = false 
     } else {
       const updateDto: UpdateAdminDto = {
         username: formData.username.trim(),
-        email: formData.email.trim(),
         displayName: formData.displayName.trim() || undefined,
         isActive: formData.isActive,
       };
       // 只有當密碼不為空時才更新密碼
       if (formData.password.trim()) {
-        if (formData.password.length < 8) {
-          setErrors({ password: '密碼長度至少為8位' });
-          return;
-        }
         updateDto.password = formData.password;
       }
       updateMutation.mutate(updateDto);
@@ -177,21 +151,6 @@ export const EditAdminDialog = ({ admin, open, onOpenChange, isCreating = false 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">郵箱 *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="輸入郵箱地址"
-                disabled={isLoading}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="password">
                 密碼 {isCreating ? '*' : '(留空則不修改)'}
               </Label>
@@ -200,7 +159,7 @@ export const EditAdminDialog = ({ admin, open, onOpenChange, isCreating = false 
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder={isCreating ? '輸入密碼（至少8位）' : '輸入新密碼（可選，至少8位）'}
+                placeholder={isCreating ? '輸入密碼' : '輸入新密碼（可選）'}
                 disabled={isLoading}
                 required={isCreating}
               />
