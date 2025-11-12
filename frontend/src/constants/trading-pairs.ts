@@ -41,3 +41,5 @@ export const TRADING_PAIRS = [
 ] as const;
 
 export type TradingPair = (typeof TRADING_PAIRS)[number];
+
+

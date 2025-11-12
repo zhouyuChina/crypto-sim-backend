@@ -9,7 +9,11 @@ import type {
   LeaderboardPayload,
   LeaderboardType,
   TradingPerformanceEntry,
-  TradingPerformancePayload
+  TradingPerformancePayload,
+  ShareCopyPayload,
+  ShareCopySetting,
+  DepositAddressPayload,
+  DepositAddressSetting
 } from '@/types/cms';
 
 export const cmsService = {
@@ -119,5 +123,36 @@ export const cmsService = {
 
   async deleteTradingPerformance(api: AxiosInstance, id: string): Promise<void> {
     await api.delete(`/admin/cms/trading-performance/${id}`);
+  },
+
+  async getShareCopy(api: AxiosInstance): Promise<ShareCopySetting | null> {
+    const response = await api.get<{ data: ShareCopySetting | null }>('/admin/cms/share-copy');
+    return response.data.data ?? null;
+  },
+
+  async updateShareCopy(
+    api: AxiosInstance,
+    payload: ShareCopyPayload
+  ): Promise<ShareCopySetting> {
+    const response = await api.put<{ data: ShareCopySetting }>('/admin/cms/share-copy', payload);
+    return response.data.data;
+  },
+
+  async getDepositAddress(api: AxiosInstance): Promise<DepositAddressSetting | null> {
+    const response = await api.get<{ data: DepositAddressSetting | null }>(
+      '/admin/cms/deposit-address'
+    );
+    return response.data.data ?? null;
+  },
+
+  async updateDepositAddress(
+    api: AxiosInstance,
+    payload: DepositAddressPayload
+  ): Promise<DepositAddressSetting> {
+    const response = await api.put<{ data: DepositAddressSetting }>(
+      '/admin/cms/deposit-address',
+      payload
+    );
+    return response.data.data;
   }
 };

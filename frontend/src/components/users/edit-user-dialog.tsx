@@ -1,12 +1,10 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-// import { useAuth } from '@/hooks/useAuth';
-// import { userService } from '@/services/users';
-// import { appConfig } from '@/config/env';
-// import type { User, UpdateUserDto, AdjustBalanceDto } from '@/types/user';
-// // import { appConfig } from '@/config/env';
-
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
+import { userService } from '@/services/users';
+import { appConfig } from '@/config/env';
+import type { User, UpdateUserDto, AdjustBalanceDto } from '@/types/user';
+
 import {
   Dialog,
   DialogContent,
@@ -15,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -24,10 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { appConfig } from '@/config/env';
-import { useAuth } from '@/hooks/useAuth';
-import { userService } from '@/services/users';
-import type { User, UpdateUserDto, AdjustBalanceDto } from '@/types/user';
 
 interface EditUserDialogProps {
   user: User | null;
@@ -35,23 +30,9 @@ interface EditUserDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const resolveFileUrl = (path?: string | null) => {
-  if (!path) {
-    return null;
-  }
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
-  }
-  const apiBase = appConfig.apiUrl.replace(/\/api\/?$/, '');
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${apiBase}${normalizedPath}`;
-};
-
 export const EditUserDialog = ({ user, open, onOpenChange }: EditUserDialogProps) => {
   const { api } = useAuth();
   const queryClient = useQueryClient();
-  const idCardFrontUrl = resolveFileUrl(user?.idCardFront);
-  const idCardBackUrl = resolveFileUrl(user?.idCardBack);
 
   const [formData, setFormData] = useState({
     email: '',

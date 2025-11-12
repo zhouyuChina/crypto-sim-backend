@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Trash2 } from 'lucide-react';
 
@@ -27,7 +27,11 @@ import type {
   LeaderboardPayload,
   LeaderboardType,
   TradingPerformanceEntry,
-  TradingPerformancePayload
+  TradingPerformancePayload,
+  ShareCopyPayload,
+  ShareCopySetting,
+  DepositAddressPayload,
+  DepositAddressSetting
 } from '@/types/cms';
 
 const tabs = [
@@ -50,8 +54,23 @@ const tabs = [
     value: 'trading-performance',
     label: '交易時長/盈利率管理',
     description: '維護不同交易時長對應的盈利率配置'
+  },
+  {
+    value: 'share-copy',
+    label: '分享平台文案設置',
+    description: '管理分享按鈕對應的預設與自定義文案'
+  },
+  {
+    value: 'deposit-address',
+    label: '入金地址設置',
+    description: '設定平台使用者入金時顯示的預設地址'
   }
 ] as const;
+
+const DEFAULT_SHARE_COPY =
+  '我發現了超好用的二元期權交易平台CT，快來使用，註冊就送10000USDT虛擬錢包，輕鬆練習交易\n\nhttp://localhost:5180';
+
+const DEFAULT_DEPOSIT_ADDRESS = 'TPMsabGrWUtwhyaKrTeXTrHq4nHSSEuaww';
 
 const placeholder = (
   <div className="flex h-48 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
@@ -175,6 +194,13 @@ export const CmsPage = () => {
   const [performanceFormErrors, setPerformanceFormErrors] = useState<Record<string, string>>({});
 
   const [leaderboardFilter, setLeaderboardFilter] = useState<LeaderboardType | 'all'>('all');
+  const [shareCopyContent, setShareCopyContent] = useState<string>(DEFAULT_SHARE_COPY);
+  const [shareCopyError, setShareCopyError] = useState<string | null>(null);
+  const [shareCopyFetchError, setShareCopyFetchError] = useState<string | null>(null);
+  const [shareCopySuccess, setShareCopySuccess] = useState<string | null>(null);
+  const [depositAddress, setDepositAddress] = useState<string>(DEFAULT_DEPOSIT_ADDRESS);
+  const [depositAddressError, setDepositAddressError] = useState<string | null>(null);
+  const [depositAddressSuccess, setDepositAddressSuccess] = useState<string | null>(null);
 
   const {
     data: testimonials = [],
@@ -207,6 +233,65 @@ export const CmsPage = () => {
     queryKey: ['cms', 'trading-performance'],
     queryFn: () => cmsService.listTradingPerformance(api)
   });
+
+  const {
+    data: shareCopySetting,
+    isLoading: shareCopyLoading,
+    error: shareCopyQueryError
+  } = useQuery({
+    queryKey: ['cms', 'share-copy'],
+    queryFn: () => cmsService.getShareCopy(api)
+  });
+
+  const {
+    data: depositAddressSetting,
+    isLoading: depositAddressLoading,
+    error: depositAddressQueryError
+  } = useQuery({
+    queryKey: ['cms', 'deposit-address'],
+    queryFn: () => cmsService.getDepositAddress(api)
+  });
+
+  useEffect(() => {
+    if (shareCopySetting && typeof shareCopySetting.content === 'string') {
+      setShareCopyContent(shareCopySetting.content || DEFAULT_SHARE_COPY);
+      setShareCopyFetchError(null);
+    } else if (!shareCopyLoading && !shareCopySetting) {
+      setShareCopyContent(DEFAULT_SHARE_COPY);
+    }
+  }, [shareCopySetting, shareCopyLoading]);
+
+  useEffect(() => {
+    if (shareCopyQueryError) {
+      const message =
+        shareCopyQueryError instanceof Error
+          ? shareCopyQueryError.message
+          : '分享文案載入失敗，請稍後再試';
+      setShareCopyFetchError(message);
+    } else {
+      setShareCopyFetchError(null);
+    }
+  }, [shareCopyQueryError]);
+
+  useEffect(() => {
+    if (!shareCopySuccess) return;
+    const timer = window.setTimeout(() => setShareCopySuccess(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [shareCopySuccess]);
+
+  useEffect(() => {
+    if (depositAddressSetting && typeof depositAddressSetting.address === 'string') {
+      setDepositAddress(depositAddressSetting.address || DEFAULT_DEPOSIT_ADDRESS);
+    } else if (!depositAddressLoading && !depositAddressSetting) {
+      setDepositAddress(DEFAULT_DEPOSIT_ADDRESS);
+    }
+  }, [depositAddressSetting, depositAddressLoading]);
+
+  useEffect(() => {
+    if (!depositAddressSuccess) return;
+    const timer = window.setTimeout(() => setDepositAddressSuccess(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [depositAddressSuccess]);
 
   const createMutation = useMutation({
     mutationFn: (payload: TestimonialPayload) => cmsService.createTestimonial(api, payload),
@@ -347,6 +432,37 @@ export const CmsPage = () => {
 
   const isPerformanceSubmitting =
     createPerformanceMutation.isPending || updatePerformanceMutation.isPending;
+
+  const updateShareCopyMutation = useMutation({
+    mutationFn: (payload: ShareCopyPayload) => cmsService.updateShareCopy(api, payload),
+    onSuccess: data => {
+      queryClient.invalidateQueries({ queryKey: ['cms', 'share-copy'] });
+      setShareCopyError(null);
+      setShareCopyFetchError(null);
+      setShareCopySuccess('分享文案已更新');
+      setShareCopyContent(data.content || DEFAULT_SHARE_COPY);
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || error?.message || '更新失敗，請稍後再試';
+      setShareCopySuccess(null);
+      setShareCopyError(message);
+    }
+  });
+
+  const updateDepositAddressMutation = useMutation({
+    mutationFn: (payload: DepositAddressPayload) => cmsService.updateDepositAddress(api, payload),
+    onSuccess: data => {
+      queryClient.invalidateQueries({ queryKey: ['cms', 'deposit-address'] });
+      setDepositAddressError(null);
+      setDepositAddressSuccess('入金地址已更新');
+      setDepositAddress(data.address || DEFAULT_DEPOSIT_ADDRESS);
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || error?.message || '更新失敗，請稍後再試';
+      setDepositAddressSuccess(null);
+      setDepositAddressError(message);
+    }
+  });
 
   const handleDialogOpenChange = (open: boolean) => {
     setDialogOpen(open);
@@ -1006,6 +1122,160 @@ export const CmsPage = () => {
     );
   };
 
+  const handleShareCopyReset = () => {
+    const fallback = shareCopySetting?.defaultContent ?? DEFAULT_SHARE_COPY;
+    setShareCopyContent(fallback);
+    setShareCopyError(null);
+    setShareCopySuccess(null);
+  };
+
+  const handleShareCopySubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = shareCopyContent.trim();
+    if (!trimmed) {
+      setShareCopyError('分享文案不可為空');
+      setShareCopySuccess(null);
+      return;
+    }
+
+    updateShareCopyMutation.mutate({ content: trimmed });
+  };
+
+  const renderShareCopyForm = () => {
+    if (shareCopyLoading) {
+      return (
+        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+          正在載入分享文案...
+        </div>
+      );
+    }
+
+    return (
+      <form className="space-y-4" onSubmit={handleShareCopySubmit}>
+        {shareCopySuccess ? (
+          <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
+            {shareCopySuccess}
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          <Label htmlFor="share-copy-content">分享文案</Label>
+          <textarea
+            id="share-copy-content"
+            value={shareCopyContent}
+            onChange={event => {
+              setShareCopyContent(event.target.value);
+              setShareCopyError(null);
+              setShareCopySuccess(null);
+            }}
+            rows={6}
+            className="min-h-[160px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder={DEFAULT_SHARE_COPY}
+            disabled={updateShareCopyMutation.isPending}
+          />
+          <p className="text-xs text-muted-foreground">
+            平台上的分享按鈕會套用此段文字，可使用換行與連結。若未設定將採用預設文案。
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={updateShareCopyMutation.isPending}>
+            {updateShareCopyMutation.isPending ? '儲存中…' : '保存分享文案'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleShareCopyReset}
+            disabled={
+              updateShareCopyMutation.isPending ||
+              shareCopyContent === (shareCopySetting?.defaultContent ?? DEFAULT_SHARE_COPY)
+            }
+          >
+            恢復預設文案
+          </Button>
+        </div>
+      </form>
+    );
+  };
+
+  const handleDepositAddressReset = () => {
+    const fallback = depositAddressSetting?.defaultAddress ?? DEFAULT_DEPOSIT_ADDRESS;
+    setDepositAddress(fallback);
+    setDepositAddressError(null);
+    setDepositAddressSuccess(null);
+  };
+
+  const handleDepositAddressSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = depositAddress.trim();
+    if (!trimmed) {
+      setDepositAddressError('入金地址不可為空');
+      setDepositAddressSuccess(null);
+      return;
+    }
+    updateDepositAddressMutation.mutate({ address: trimmed });
+  };
+
+  const renderDepositAddressForm = () => {
+    if (depositAddressLoading) {
+      return (
+        <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
+          正在載入入金地址...
+        </div>
+      );
+    }
+
+    return (
+      <form className="space-y-4" onSubmit={handleDepositAddressSubmit}>
+        {depositAddressSuccess ? (
+          <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
+            {depositAddressSuccess}
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          <Label htmlFor="deposit-address">入金地址</Label>
+          <Input
+            id="deposit-address"
+            value={depositAddress}
+            onChange={event => {
+              setDepositAddress(event.target.value);
+              setDepositAddressError(null);
+              setDepositAddressSuccess(null);
+            }}
+            autoComplete="off"
+            spellCheck={false}
+            disabled={updateDepositAddressMutation.isPending}
+          />
+          {depositAddressError ? (
+            <p className="text-sm text-destructive">{depositAddressError}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              用戶在入金頁面會看到此地址，請確認與錢包資訊一致。
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={updateDepositAddressMutation.isPending}>
+            {updateDepositAddressMutation.isPending ? '儲存中…' : '保存入金地址'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleDepositAddressReset}
+            disabled={
+              updateDepositAddressMutation.isPending ||
+              depositAddress === (depositAddressSetting?.defaultAddress ?? DEFAULT_DEPOSIT_ADDRESS)
+            }
+          >
+            恢復預設地址
+          </Button>
+        </div>
+      </form>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -1027,6 +1297,8 @@ export const CmsPage = () => {
           const isCarousel = tab.value === 'carousel';
           const isLeaderboard = tab.value === 'leaderboard';
           const isTradingPerformanceTab = tab.value === 'trading-performance';
+          const isShareCopy = tab.value === 'share-copy';
+          const isDepositAddress = tab.value === 'deposit-address';
 
           return (
             <TabsContent key={tab.value} value={tab.value} className="space-y-4">
@@ -1066,6 +1338,10 @@ export const CmsPage = () => {
                         ? renderLeaderboardTable()
                         : isTradingPerformanceTab
                           ? renderPerformanceTable()
+                          : isShareCopy
+                            ? renderShareCopyForm()
+                            : isDepositAddress
+                              ? renderDepositAddressForm()
                           : placeholder}
                 </CardContent>
               </Card>

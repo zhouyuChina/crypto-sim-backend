@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   useReactTable,
@@ -45,6 +46,7 @@ import {
 import { EditUserDialog } from '@/components/users/edit-user-dialog';
 
 export const UsersPage = () => {
+  const navigate = useNavigate();
   const { api } = useAuth();
   const queryClient = useQueryClient();
 
@@ -176,6 +178,25 @@ export const UsersPage = () => {
       cell: ({ row }) => {
         const balance = parseFloat(row.getValue('realBalance'));
         return <div className="text-right">${balance.toFixed(2)}</div>;
+      },
+    },
+    {
+      id: 'view',
+      header: '詳情',
+      cell: ({ row }) => {
+        const user = row.original;
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate({ to: `/users/${user.id}` })}
+          >
+            查看詳情
+          </Button>
+        );
+      },
+      meta: {
+        minWidth: '110px',
       },
     },
     {
