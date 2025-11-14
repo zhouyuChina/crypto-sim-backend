@@ -52,4 +52,8 @@ export class CreateTransactionDto {
   @IsEnum(['DEMO', 'REAL'])
   @IsOptional()
   accountType?: 'DEMO' | 'REAL' = 'DEMO';
+
+  @IsString()
+  @IsOptional()
+  subMarketCycleId?: string;
 }

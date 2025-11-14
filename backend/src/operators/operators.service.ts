@@ -15,6 +15,11 @@ import { UpdateOperatorDto } from './dto/update-operator.dto';
 import { QueryOperatorsDto } from './dto/query-operators.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import {
+  adjustSubMarketCycleStats,
+  isTradeAllowed,
+  resolveActiveSubMarketCycle,
+} from '../market-session/utils/resolve-active-sub-market-cycle.util';
 
 @Injectable()
 export class OperatorsService {
@@ -334,6 +339,24 @@ export class OperatorsService {
     // 生成唯一的订单号
     const orderNumber = `TX${Date.now()}${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
 
+    const accountType = dto.accountType ?? 'DEMO';
+    let targetCycleId = dto.subMarketCycleId ?? null;
+
+    if (accountType === 'REAL') {
+      if (targetCycleId) {
+        await this.ensureCycleAcceptsTrade(targetCycleId, dto.assetType, dto.duration);
+      } else {
+        const cycle = await resolveActiveSubMarketCycle(this.prisma, {
+          duration: dto.duration,
+          assetType: dto.assetType,
+        });
+        if (!cycle) {
+          throw new BadRequestException('当前没有匹配的小盘周期，暂时无法创建交易');
+        }
+        targetCycleId = cycle.id;
+      }
+    }
+
     const transaction = await this.prisma.transactionLog.create({
       data: {
         userId: memberId,
@@ -351,10 +374,20 @@ export class OperatorsService {
         returnRate: dto.returnRate,
         actualReturn: dto.actualReturn,
         status: dto.status ?? 'SETTLED',
-        accountType: dto.accountType ?? 'DEMO',
+        accountType,
+        subMarketCycleId: targetCycleId ?? undefined,
         settledAt: dto.status === 'SETTLED' ? new Date() : null,
       },
     });
+
+    if (accountType === 'REAL' && targetCycleId) {
+      await adjustSubMarketCycleStats(
+        this.prisma,
+        targetCycleId,
+        1,
+        dto.investAmount,
+      );
+    }
 
     this.logger.log(`为操作员创建交易流水: ${member.email} (订单: ${orderNumber})`);
 
@@ -456,10 +489,71 @@ export class OperatorsService {
       updateData.settledAt = new Date();
     }
 
+    const previousCycleId = transaction.subMarketCycleId;
+    const previousAccountType = transaction.accountType;
+    const previousInvestAmount = Number(transaction.investAmount);
+
+    const nextAccountType = dto.accountType ?? transaction.accountType;
+    const nextDuration = dto.duration ?? transaction.duration;
+    const nextAssetType = dto.assetType ?? transaction.assetType;
+    const nextInvestAmount = dto.investAmount ?? Number(transaction.investAmount);
+
+    let nextCycleId = dto.subMarketCycleId ?? transaction.subMarketCycleId;
+
+    if (nextAccountType === 'REAL') {
+      if (nextCycleId) {
+        await this.ensureCycleAcceptsTrade(nextCycleId, nextAssetType, nextDuration);
+      } else {
+        const cycle = await resolveActiveSubMarketCycle(this.prisma, {
+          duration: nextDuration,
+          assetType: nextAssetType,
+        });
+        if (!cycle) {
+          throw new BadRequestException('当前没有匹配的小盘周期，暂时无法更新交易');
+        }
+        nextCycleId = cycle.id;
+      }
+      updateData.subMarketCycleId = nextCycleId;
+    } else {
+      updateData.subMarketCycleId = null;
+    }
+
     const updatedTransaction = await this.prisma.transactionLog.update({
       where: { id: transactionId },
       data: updateData,
     });
+
+    const shouldAdjustPrevious =
+      previousAccountType === 'REAL' &&
+      previousCycleId &&
+      (nextAccountType !== 'REAL' ||
+        nextCycleId !== previousCycleId ||
+        previousInvestAmount !== nextInvestAmount);
+
+    if (shouldAdjustPrevious) {
+      await adjustSubMarketCycleStats(
+        this.prisma,
+        previousCycleId,
+        -1,
+        -previousInvestAmount,
+      );
+    }
+
+    if (nextAccountType === 'REAL' && nextCycleId) {
+      const shouldIncrement =
+        previousAccountType !== 'REAL' ||
+        previousCycleId !== nextCycleId ||
+        previousInvestAmount !== nextInvestAmount;
+
+      if (shouldIncrement) {
+        await adjustSubMarketCycleStats(
+          this.prisma,
+          nextCycleId,
+          1,
+          nextInvestAmount,
+        );
+      }
+    }
 
     this.logger.log(`交易流水已更新: ${transaction.orderNumber}`);
 
@@ -497,6 +591,50 @@ export class OperatorsService {
 
     this.logger.log(`交易流水已删除: ${transaction.orderNumber}`);
 
+    if (transaction.accountType === 'REAL' && transaction.subMarketCycleId) {
+      await adjustSubMarketCycleStats(
+        this.prisma,
+        transaction.subMarketCycleId,
+        -1,
+        -Number(transaction.investAmount),
+      );
+    }
+
     return { message: '交易流水已删除' };
+  }
+
+  private async ensureCycleAcceptsTrade(
+    cycleId: string,
+    assetType: string,
+    duration: number,
+  ) {
+    const cycle = await this.prisma.subMarketCycle.findUnique({
+      where: { id: cycleId },
+      include: {
+        subMarket: {
+          include: {
+            marketSession: true,
+          },
+        },
+      },
+    });
+
+    if (!cycle || cycle.status !== 'RUNNING') {
+      throw new BadRequestException('指定的小盘周期无效或已结束');
+    }
+
+    if (cycle.subMarket.tradeDuration !== duration) {
+      throw new BadRequestException('交易时长与小盘周期不匹配');
+    }
+
+    if (
+      !isTradeAllowed(
+        cycle.subMarket.marketSession.tradeTypes,
+        assetType,
+        duration,
+      )
+    ) {
+      throw new BadRequestException('当前资产不在允许的交易类型中');
+    }
   }
 }

@@ -70,7 +70,18 @@
       "Bash(/tmp/test_admin_management.sh)",
       "Bash(operators.module.ts)",
       "Bash(/Users/zhouyu/www/work/crypto-sim-backend/backend/src/app/app.module.ts)",
-      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImMzYzkxZGMwLWVmODUtNDM3Zi04MGEzLWZkNjNlNzIwZTcwNiIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzEwNzQ1ODgsImV4cCI6MTczMTA3NTQ4OH0.nR0Uqzu3eYgB-0yWb5HqGMW4BqKjBpwQhh1JLUh7d6E\")"
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImMzYzkxZGMwLWVmODUtNDM3Zi04MGEzLWZkNjNlNzIwZTcwNiIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MzEwNzQ1ODgsImV4cCI6MTczMTA3NTQ4OH0.nR0Uqzu3eYgB-0yWb5HqGMW4BqKjBpwQhh1JLUh7d6E\")",
+      "Bash(/tmp/test_share_config.sh)",
+      "Bash(/tmp/test_share_default.sh:*)",
+      "Bash(/tmp/test_deposit_address.sh)",
+      "Bash(find:*)",
+      "Bash(/tmp/test-admin-login.sh:*)",
+      "Bash(/tmp/test_ip_whitelist.sh:*)",
+      "Bash(/tmp/test_support_chat.sh)",
+      "Bash(/tmp/test_support_chat_v2.sh:*)",
+      "Bash(/tmp/test_support_chat_v3.sh)",
+      "Bash(/tmp/admin_login.json)",
+      "Bash(/tmp/test_support_api.sh)"
     ],
     "deny": [],
     "ask": []

@@ -5,7 +5,12 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Prisma, TransactionStatus, TradeDirection, AccountType } from '@prisma/client';
+import {
+  Prisma,
+  TransactionStatus,
+  TradeDirection,
+  AccountType,
+} from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from '../market-data/market-data.service';
@@ -15,6 +20,20 @@ import { QueryTransactionsDto } from './dto/query-transactions.dto';
 import { AdminQueryTransactionsDto } from './dto/admin-query-transactions.dto';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { generateOrderNumber } from '../common/utils/order-number.generator';
+import {
+  adjustSubMarketCycleStats,
+  resolveActiveSubMarketCycle,
+} from '../market-session/utils/resolve-active-sub-market-cycle.util';
+
+type ForcedResult = 'WIN' | 'LOSE';
+
+interface SettleTransactionOptions {
+  forcedResult?: ForcedResult;
+  reason?: string;
+  operatorId?: string;
+  operatorName?: string;
+  manual?: boolean;
+}
 
 @Injectable()
 export class TransactionLogService {
@@ -79,6 +98,18 @@ export class TransactionLogService {
       isManaged = false;
     }
 
+    let subMarketCycleId: string | null = null;
+    if (accountType === AccountType.REAL) {
+      const cycle = await resolveActiveSubMarketCycle(this.prisma, {
+        duration: dto.duration,
+        assetType: dto.assetType,
+      });
+      if (!cycle) {
+        throw new BadRequestException('当前没有匹配的小盘周期，暂时无法下单');
+      }
+      subMarketCycleId = cycle.id;
+    }
+
     // 创建交易记录
     const transaction = await this.prisma.transactionLog.create({
       data: {
@@ -99,8 +130,18 @@ export class TransactionLogService {
         actualReturn: 0, // 初始为 0，结算时计算
         status: TransactionStatus.PENDING,
         isManaged, // 记录是否在托管状态下创建
+        subMarketCycleId: subMarketCycleId || undefined,
       },
     });
+
+    if (subMarketCycleId) {
+      await adjustSubMarketCycleStats(
+        this.prisma,
+        subMarketCycleId,
+        1,
+        dto.investAmount,
+      );
+    }
 
     // 根据账户类型扣除投资金额
     if (accountType === AccountType.DEMO) {
@@ -333,15 +374,16 @@ export class TransactionLogService {
     }
 
     // 调用内部结算方法
-    return this.settleTransactionInternal(orderNumber, exitPrice);
+    return this.settleTransactionBySystem(orderNumber, exitPrice);
   }
 
   /**
-   * 内部结算方法（不验证用户权限，用于系统自动结算）
+   * 内部结算方法（不验证用户权限，用于系统/后台结算）
    */
-  private async settleTransactionInternal(
+  async settleTransactionBySystem(
     orderNumber: string,
-    exitPrice: number,
+    exitPrice?: number,
+    options: SettleTransactionOptions = {},
   ): Promise<TransactionResponseDto> {
     const transaction = await this.prisma.transactionLog.findUnique({
       where: { orderNumber },
@@ -351,53 +393,71 @@ export class TransactionLogService {
       throw new NotFoundException(`订单 ${orderNumber} 不存在`);
     }
 
-    if (transaction.status !== TransactionStatus.PENDING) {
-      throw new BadRequestException(`订单 ${orderNumber} 已经结算或取消`);
+    if (transaction.status === TransactionStatus.CANCELED) {
+      throw new BadRequestException(`订单 ${orderNumber} 已被取消，无法结算`);
     }
 
-    // 计算盈亏
-    const isWin = this.calculateIsWin(
-      transaction.direction,
-      Number(transaction.entryPrice),
-      exitPrice,
-    );
+    const wasSettled = transaction.status === TransactionStatus.SETTLED;
 
-    // 计算实得金额
+    const resolvedExitPrice =
+      exitPrice !== undefined
+        ? exitPrice
+        : await this.getCurrentPrice(transaction.assetType);
+
+    const isWin = options.forcedResult
+      ? options.forcedResult === 'WIN'
+      : this.calculateIsWin(
+          transaction.direction,
+          Number(transaction.entryPrice),
+          resolvedExitPrice,
+        );
+
     const investAmount = Number(transaction.investAmount);
     const returnRate = Number(transaction.returnRate);
+    const actualReturn = isWin
+      ? investAmount * (1 + returnRate)
+      : -investAmount;
 
-    let actualReturn: number;
-    if (isWin) {
-      // 赢了：返还本金 + 收益
-      actualReturn = investAmount * (1 + returnRate);
-    } else {
-      // 输了：损失全部本金
-      actualReturn = -investAmount;
-    }
+    const manualMetadata = options.manual
+      ? {
+          manualAdjusted: true,
+          manualAdjustedById: options.operatorId,
+          manualAdjustedByName: options.operatorName,
+          manualAdjustmentReason: options.reason,
+          manualAdjustedAt: new Date(),
+        }
+      : {};
 
-    // 更新交易记录
     const updatedTransaction = await this.prisma.transactionLog.update({
       where: { orderNumber },
       data: {
-        exitPrice,
-        currentPrice: exitPrice,
+        exitPrice: resolvedExitPrice,
+        currentPrice: resolvedExitPrice,
         actualReturn,
         status: TransactionStatus.SETTLED,
         settledAt: new Date(),
+        ...manualMetadata,
       },
     });
 
-    // 更新用户账户
     await this.updateUserAccountAfterSettle(
       transaction.userId,
       investAmount,
       actualReturn,
       isWin,
       transaction.accountType,
+      {
+        wasSettled,
+        previousActualReturn: Number(transaction.actualReturn ?? 0),
+      },
     );
 
     this.logger.log(
-      `交易已结算: ${orderNumber}, 账户类型: ${transaction.accountType}, 结果: ${isWin ? '盈利' : '亏损'}, 实得: ${actualReturn}`,
+      `交易已结算: ${orderNumber}, 账户类型: ${transaction.accountType}, 结果: ${
+        isWin ? '盈利' : '亏损'
+      }, 实得: ${actualReturn}${
+        options.manual ? '（人工干预）' : ''
+      }`,
     );
 
     return this.mapToResponseDto(updatedTransaction);
@@ -485,7 +545,9 @@ export class TransactionLogService {
       try {
         // 获取当前市场价格作为出场价
         const exitPrice = await this.getCurrentPrice(transaction.assetType);
-        await this.settleTransactionInternal(transaction.orderNumber, exitPrice);
+        await this.settleTransactionBySystem(transaction.orderNumber, exitPrice, {
+          reason: 'AUTO_EXPIRED',
+        });
         settledCount++;
       } catch (error) {
         this.logger.error(
@@ -497,6 +559,28 @@ export class TransactionLogService {
 
     this.logger.log(`自动结算完成: ${settledCount}/${expiredTransactions.length}`);
     return settledCount;
+  }
+
+  /**
+   * 后台强制结算（可用于客服人工干预）
+   */
+  async forceSettleTransaction(
+    orderNumber: string,
+    params: {
+      exitPrice?: number;
+      result?: ForcedResult;
+      reason?: string;
+      operatorId: string;
+      operatorName?: string;
+    },
+  ): Promise<TransactionResponseDto> {
+    return this.settleTransactionBySystem(orderNumber, params.exitPrice, {
+      forcedResult: params.result,
+      reason: params.reason,
+      operatorId: params.operatorId,
+      operatorName: params.operatorName,
+      manual: true,
+    });
   }
 
   /**
@@ -554,16 +638,14 @@ export class TransactionLogService {
    * 获取当前市场价格
    */
   private async getCurrentPrice(assetType: string): Promise<number> {
-    // TODO: 从市场数据服务获取实时价格
-    // 暂时返回模拟价格
-    const mockPrices: Record<string, number> = {
-      BTC: 65000,
-      ETH: 3500,
-      ADA: 0.45,
-      SOL: 150,
-    };
-
-    return mockPrices[assetType] || 100;
+    try {
+      return await this.marketDataService.getLatestPrice(assetType);
+    } catch (error) {
+      this.logger.error(
+        `获取 ${assetType} 最新价格失败: ${(error as Error).message}`,
+      );
+      throw new BadRequestException('暂时无法获取实时价格，请稍后再试');
+    }
   }
 
   /**
@@ -590,14 +672,21 @@ export class TransactionLogService {
     userId: string,
     investAmount: number,
     actualReturn: number,
-    isWin: boolean,
+    _isWin: boolean,
     accountType: AccountType = AccountType.DEMO,
+    options?: { wasSettled?: boolean; previousActualReturn?: number },
   ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) return;
+
+    const wasSettled = options?.wasSettled ?? false;
+    const previousActualReturn = options?.previousActualReturn ?? 0;
+    const balanceDelta = wasSettled
+      ? actualReturn - previousActualReturn
+      : investAmount + actualReturn;
 
     // 根据账户类型获取当前余额
     const currentBalance =
@@ -609,15 +698,19 @@ export class TransactionLogService {
     const currentTotalTrades = user.totalTrades;
 
     // 计算新的余额（实得可能是负数）
-    const newBalance = currentBalance + investAmount + actualReturn;
+    const newBalance = currentBalance + balanceDelta;
 
     // 只有真实仓才更新总盈亏和胜率
     let updateData: any;
 
     if (accountType === AccountType.REAL) {
       // 真实仓：更新总盈亏、交易次数和胜率
-      const newProfitLoss = currentProfitLoss + actualReturn;
-      const newTotalTrades = currentTotalTrades + 1;
+      const profitDelta = actualReturn - previousActualReturn;
+      let newTotalTrades = currentTotalTrades;
+      if (!wasSettled) {
+        newTotalTrades += 1;
+      }
+      const newProfitLoss = currentProfitLoss + profitDelta;
 
       // 计算新的胜率（只统计真实仓）
       const winTrades = await this.prisma.transactionLog.count({
@@ -628,7 +721,8 @@ export class TransactionLogService {
           actualReturn: { gt: 0 },
         },
       });
-      const newWinRate = (winTrades / newTotalTrades) * 100;
+      const newWinRate =
+        newTotalTrades > 0 ? (winTrades / newTotalTrades) * 100 : 0;
 
       updateData = {
         realBalance: newBalance,

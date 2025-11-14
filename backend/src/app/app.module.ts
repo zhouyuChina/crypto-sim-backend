@@ -26,6 +26,8 @@ import { CmsModule } from '../cms/cms.module';
 import { PublicCmsModule } from '../cms/public/public-cms.module';
 import { OperatorsModule } from '../operators/operators.module';
 import { TradingManagementModule } from '../trading-management/trading-management.module';
+import { SupportModule } from '../support/support.module';
+import { MarketSessionModule } from '../market-session/market-session.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -122,7 +124,9 @@ import { RolesGuard } from '../common/guards/roles.guard';
     TransactionLogModule,
     SettingsModule,
     OperatorsModule,
-    TradingManagementModule
+    TradingManagementModule,
+    SupportModule,
+    MarketSessionModule
   ],
   controllers: [AppController],
   providers: [
