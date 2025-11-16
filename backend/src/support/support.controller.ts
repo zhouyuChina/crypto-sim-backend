@@ -11,6 +11,7 @@ import {
   UploadedFile,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -19,6 +20,8 @@ import { GetMessagesDto } from './dto/get-messages.dto';
 
 @Controller('support')
 export class SupportController {
+  private readonly logger = new Logger(SupportController.name);
+
   constructor(private readonly supportService: SupportService) {}
 
   /**
@@ -36,7 +39,40 @@ export class SupportController {
    */
   @Get('messages')
   async getMessages(@CurrentUser() user: any, @Query() dto: GetMessagesDto) {
-    return await this.supportService.getMessages(dto.conversationId, user.id, dto.limit, dto.offset);
+    try {
+      this.logger.log(`getMessages called - User: ${user.id}, ConversationId: ${dto.conversationId || 'not provided'}, Limit: ${dto.limit}, Offset: ${dto.offset}`);
+
+      // 如果没有传 conversationId，使用当前用户的对话
+      let conversationId = dto.conversationId;
+
+      if (!conversationId) {
+        this.logger.log(`No conversationId provided, fetching user conversation for user: ${user.id}`);
+        const conversation = await this.supportService.getOrCreateUserConversation(user.id, user.displayName);
+        conversationId = conversation.id;
+        this.logger.log(`Using conversation: ${conversationId}`);
+      }
+
+      // 确保 limit 和 offset 是数字
+      const limit = Number(dto.limit) || 50;
+      const offset = Number(dto.offset) || 0;
+
+      this.logger.log(`Fetching messages - ConversationId: ${conversationId}, Limit: ${limit}, Offset: ${offset}`);
+
+      const result = await this.supportService.getMessages(
+        conversationId,
+        user.id,
+        limit,
+        offset
+      );
+
+      this.logger.log(`Successfully fetched ${result.messages.length} messages, Total: ${result.total}`);
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Error in getMessages: ${errorMessage}`, errorStack);
+      throw error;
+    }
   }
 
   /**

@@ -318,4 +318,26 @@ export class SupportService {
 
     return conversations;
   }
+
+  /**
+   * 管理员：获取对话消息（不需要验证权限）
+   */
+  async getAdminMessages(conversationId: string, limit = 50, offset = 0) {
+    const messages = await this.prisma.chatMessage.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: offset,
+    });
+
+    const total = await this.prisma.chatMessage.count({
+      where: { conversationId },
+    });
+
+    return {
+      messages: messages.reverse(), // 反转顺序，最旧的在前
+      total,
+      hasMore: offset + limit < total,
+    };
+  }
 }

@@ -30,7 +30,9 @@ export class RolesGuard implements CanActivate {
 
     const hasRole = requiredRoles.some(role => user.roles?.includes(role));
     if (!hasRole) {
-      throw new ForbiddenException('Forbidden resource');
+      // 添加详细的错误信息用于调试
+      const errorMsg = `Forbidden resource - Required roles: [${requiredRoles.join(', ')}], User roles: [${user.roles?.join(', ') || 'none'}], User ID: ${user.id}`;
+      throw new ForbiddenException(errorMsg);
     }
 
     return true;

@@ -8,6 +8,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -18,6 +19,8 @@ import { SendMessageDto } from './dto/send-message.dto';
 
 @Controller('admin/support')
 export class SupportAdminController {
+  private readonly logger = new Logger(SupportAdminController.name);
+
   constructor(private readonly supportService: SupportService) {}
 
   /**
@@ -135,5 +138,33 @@ export class SupportAdminController {
   @Roles('admin')
   async getUnreadCount(@Query('adminId') adminId?: string) {
     return await this.supportService.getUnreadCount(adminId);
+  }
+
+  /**
+   * 获取对话消息（管理员，支持分页）
+   * GET /api/admin/support/messages
+   */
+  @Get('messages')
+  @Roles('admin')
+  async getMessages(
+    @Query('conversationId') conversationId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    this.logger.log(`Admin getMessages called - ConversationId: ${conversationId || 'not provided'}, Limit: ${limit}, Offset: ${offset}`);
+
+    if (!conversationId) {
+      this.logger.error('conversationId is required but not provided');
+      throw new BadRequestException('conversationId 是必需的');
+    }
+
+    const result = await this.supportService.getAdminMessages(
+      conversationId,
+      Number(limit) || 50,
+      Number(offset) || 0,
+    );
+
+    this.logger.log(`Admin successfully fetched ${result.messages.length} messages, Total: ${result.total}`);
+    return result;
   }
 }

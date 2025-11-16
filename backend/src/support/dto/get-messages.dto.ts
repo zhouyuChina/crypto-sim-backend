@@ -3,8 +3,8 @@ import { Type } from 'class-transformer';
 
 export class GetMessagesDto {
   @IsString()
-  @IsNotEmpty()
-  conversationId!: string;
+  @IsOptional()  // 改为可选，如果不传则使用当前用户的对话
+  conversationId?: string;
 
   @IsInt()
   @Min(1)

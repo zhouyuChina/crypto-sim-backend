@@ -14,7 +14,7 @@ import { MessageType } from '@prisma/client';
 
 @WebSocketGateway({
   cors: { origin: '*' },
-  namespace: '/admin/chat', // 管理员客服系统命名空间
+  namespace: '/support', // 客服系统命名空间（支持管理员和用户）
 })
 export class SupportGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(SupportGateway.name);

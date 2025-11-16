@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD } from '@nestjs/core';
 import { TerminusModule } from '@nestjs/terminus';
 import { BullModule } from '@nestjs/bullmq';
@@ -28,6 +29,7 @@ import { OperatorsModule } from '../operators/operators.module';
 import { TradingManagementModule } from '../trading-management/trading-management.module';
 import { SupportModule } from '../support/support.module';
 import { MarketSessionModule } from '../market-session/market-session.module';
+import { AdminTradingModule } from '../admin-trading/admin-trading.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -107,6 +109,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
     //   })
     // }),
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     TerminusModule,
     PrismaModule,
     RedisModule,
@@ -126,7 +129,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
     OperatorsModule,
     TradingManagementModule,
     SupportModule,
-    MarketSessionModule
+    MarketSessionModule,
+    AdminTradingModule
   ],
   controllers: [AppController],
   providers: [

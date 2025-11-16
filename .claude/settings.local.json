@@ -81,7 +81,8 @@
       "Bash(/tmp/test_support_chat_v2.sh:*)",
       "Bash(/tmp/test_support_chat_v3.sh)",
       "Bash(/tmp/admin_login.json)",
-      "Bash(/tmp/test_support_api.sh)"
+      "Bash(/tmp/test_support_api.sh)",
+      "Bash(npm run start:*)"
     ],
     "deny": [],
     "ask": []
