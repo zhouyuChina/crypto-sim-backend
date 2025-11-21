@@ -20,10 +20,6 @@ import { QueryTransactionsDto } from './dto/query-transactions.dto';
 import { AdminQueryTransactionsDto } from './dto/admin-query-transactions.dto';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { generateOrderNumber } from '../common/utils/order-number.generator';
-import {
-  adjustSubMarketCycleStats,
-  resolveActiveSubMarketCycle,
-} from '../market-session/utils/resolve-active-sub-market-cycle.util';
 
 type ForcedResult = 'WIN' | 'LOSE';
 
@@ -98,16 +94,19 @@ export class TransactionLogService {
       isManaged = false;
     }
 
-    let subMarketCycleId: string | null = null;
+    // 查找当前活跃的大盘（真实仓需要关联大盘）
+    let marketSessionId: string | null = null;
     if (accountType === AccountType.REAL) {
-      const cycle = await resolveActiveSubMarketCycle(this.prisma, {
-        duration: dto.duration,
-        assetType: dto.assetType,
+      const activeMarketSession = await this.prisma.marketSession.findFirst({
+        where: {
+          status: 'ACTIVE',
+        },
+        orderBy: { startTime: 'desc' },
       });
-      if (!cycle) {
-        throw new BadRequestException('当前没有匹配的小盘周期，暂时无法下单');
+      if (activeMarketSession) {
+        marketSessionId = activeMarketSession.id;
       }
-      subMarketCycleId = cycle.id;
+      // 如果没有活跃的大盘，marketSessionId 为 null，结算时会判输
     }
 
     // 创建交易记录
@@ -130,18 +129,14 @@ export class TransactionLogService {
         actualReturn: 0, // 初始为 0，结算时计算
         status: TransactionStatus.PENDING,
         isManaged, // 记录是否在托管状态下创建
-        subMarketCycleId: subMarketCycleId || undefined,
+        marketSessionId, // 关联大盘
+      },
+      include: {
+        marketSession: {
+          select: { name: true },
+        },
       },
     });
-
-    if (subMarketCycleId) {
-      await adjustSubMarketCycleStats(
-        this.prisma,
-        subMarketCycleId,
-        1,
-        dto.investAmount,
-      );
-    }
 
     // 根据账户类型扣除投资金额
     if (accountType === AccountType.DEMO) {
@@ -230,6 +225,11 @@ export class TransactionLogService {
           orderBy: { createdAt: 'desc' },
           skip,
           take: limit,
+          include: {
+            marketSession: {
+              select: { name: true },
+            },
+          },
         }),
         this.prisma.transactionLog.count({ where }),
       ]);
@@ -264,13 +264,14 @@ export class TransactionLogService {
   }
 
   async getAdminTransactions(query: AdminQueryTransactionsDto) {
-    const { userId, username, managedMode, ...filters } = query;
+    const { userId, username, managedMode, marketSessionId, ...filters } = query;
 
     // 构建额外的查询条件
     const where: Prisma.TransactionLogWhereInput = {
       ...(userId && { userId }),
       ...(username && { userName: { contains: username, mode: 'insensitive' } }),
       ...(managedMode !== undefined && { isManaged: managedMode }),
+      ...(marketSessionId && { marketSessionId }),
     };
 
     // 如果有额外的查询条件，需要合并到基础查询中
@@ -294,6 +295,11 @@ export class TransactionLogService {
           orderBy: { createdAt: 'desc' },
           skip,
           take: limit,
+          include: {
+            marketSession: {
+              select: { name: true },
+            },
+          },
         }),
         this.prisma.transactionLog.count({ where: combinedWhere }),
       ]);
@@ -319,6 +325,11 @@ export class TransactionLogService {
   ): Promise<TransactionResponseDto> {
     const transaction = await this.prisma.transactionLog.findUnique({
       where: { orderNumber },
+      include: {
+        marketSession: {
+          select: { name: true },
+        },
+      },
     });
 
     if (!transaction) {
@@ -404,13 +415,21 @@ export class TransactionLogService {
         ? exitPrice
         : await this.getCurrentPrice(transaction.assetType);
 
-    const isWin = options.forcedResult
-      ? options.forcedResult === 'WIN'
-      : this.calculateIsWin(
-          transaction.direction,
-          Number(transaction.entryPrice),
-          resolvedExitPrice,
-        );
+    // 真实仓交易没有关联大盘时直接判输
+    let isWin: boolean;
+    if (transaction.accountType === AccountType.REAL && !transaction.marketSessionId) {
+      // 无大盘关联，直接判输
+      isWin = false;
+      this.logger.warn(`交易 ${orderNumber} 无大盘关联，直接判输`);
+    } else if (options.forcedResult) {
+      isWin = options.forcedResult === 'WIN';
+    } else {
+      isWin = this.calculateIsWin(
+        transaction.direction,
+        Number(transaction.entryPrice),
+        resolvedExitPrice,
+      );
+    }
 
     const investAmount = Number(transaction.investAmount);
     const returnRate = Number(transaction.returnRate);
@@ -437,6 +456,11 @@ export class TransactionLogService {
         status: TransactionStatus.SETTLED,
         settledAt: new Date(),
         ...manualMetadata,
+      },
+      include: {
+        marketSession: {
+          select: { name: true },
+        },
       },
     });
 
@@ -493,6 +517,11 @@ export class TransactionLogService {
       data: {
         status: TransactionStatus.CANCELED,
         actualReturn: 0,
+      },
+      include: {
+        marketSession: {
+          select: { name: true },
+        },
       },
     });
 
@@ -770,6 +799,8 @@ export class TransactionLogService {
       updatedAt: transaction.updatedAt,
       settledAt: transaction.settledAt,
       isManaged: transaction.isManaged ?? false,
+      marketSessionId: transaction.marketSessionId ?? null,
+      marketSessionName: transaction.marketSession?.name ?? null,
     };
   }
 }

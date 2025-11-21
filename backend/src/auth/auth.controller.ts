@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Request, UseGuards, Ip, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Patch, Param, Query, Request, UseGuards, Ip, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -10,6 +10,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { UpdatePhoneDto } from './dto/update-phone.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UploadIdCardDto, IdCardType } from './dto/upload-id-card.dto';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
@@ -42,6 +44,32 @@ export class AuthController {
   @Get('me')
   profile(@CurrentUser() user: UserEntity) {
     return user;
+  }
+
+  @Public()
+  @Patch('phone/:userId')
+  async updatePhone(
+    @Param('userId') userId: string,
+    @Body() updatePhoneDto: UpdatePhoneDto
+  ) {
+    const updatedUser = await this.authService.updatePhoneNumber(userId, updatePhoneDto.phoneNumber);
+    return {
+      message: '手机号更新成功',
+      user: updatedUser,
+    };
+  }
+
+  @Public()
+  @Put('profile/:userId')
+  async updateProfile(
+    @Param('userId') userId: string,
+    @Body() updateProfileDto: UpdateProfileDto
+  ) {
+    const updatedUser = await this.authService.updateProfile(userId, updateProfileDto);
+    return {
+      message: '个人资料更新成功',
+      user: updatedUser,
+    };
   }
 
   @UseGuards(JwtAuthGuard)

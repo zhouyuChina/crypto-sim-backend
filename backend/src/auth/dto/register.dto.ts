@@ -14,10 +14,9 @@ export class RegisterDto {
   @MinLength(2)
   displayName!: string;
 
-  // 暂时注释掉手机号验证，以后可能会用到
-  // @IsOptional()
-  // @IsString()
-  // phoneNumber?: string;
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
 
   @IsOptional()
   @IsString()

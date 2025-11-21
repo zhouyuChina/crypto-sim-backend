@@ -22,10 +22,9 @@ export class UpdateUserDto {
   @IsString()
   displayName?: string;
 
-  // 暂时注释掉手机号字段，以后可能会用到
-  // @IsOptional()
-  // @IsString()
-  // phoneNumber?: string;
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
 
   @IsOptional()
   @IsString()

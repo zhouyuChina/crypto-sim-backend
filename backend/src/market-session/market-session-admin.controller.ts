@@ -14,7 +14,6 @@ import { MarketSessionService } from './market-session.service';
 import { CreateMarketSessionDto } from './dto/create-market-session.dto';
 import { UpdateMarketSessionDto } from './dto/update-market-session.dto';
 import { GetMarketSessionsDto } from './dto/get-market-sessions.dto';
-import { GetSubMarketCyclesDto } from './dto/get-sub-market-cycles.dto';
 
 @Controller('admin/market-sessions')
 export class MarketSessionAdminController {
@@ -52,19 +51,6 @@ export class MarketSessionAdminController {
   @Roles('admin')
   async findOne(@Param('id') id: string) {
     return await this.marketSessionService.findOne(id);
-  }
-
-  /**
-   * 获取小盘历史周期
-   * GET /api/admin/market-sessions/sub-markets/:subMarketId/cycles
-   */
-  @Get('sub-markets/:subMarketId/cycles')
-  @Roles('admin')
-  async getSubMarketCycles(
-    @Param('subMarketId') subMarketId: string,
-    @Query() dto: GetSubMarketCyclesDto,
-  ) {
-    return await this.marketSessionService.getSubMarketCycles(subMarketId, dto);
   }
 
   /**

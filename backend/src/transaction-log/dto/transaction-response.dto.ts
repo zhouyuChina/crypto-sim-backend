@@ -23,4 +23,6 @@ export class TransactionResponseDto {
   updatedAt!: Date;
   settledAt!: Date | null;
   isManaged!: boolean; // 是否在托管状态下产生的交易
+  marketSessionId!: string | null; // 关联的大盘 ID
+  marketSessionName!: string | null; // 关联的大盘名称
 }

@@ -1,7 +1,6 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { MarketSessionService } from './market-session.service';
-import { GetSubMarketCyclesDto } from './dto/get-sub-market-cycles.dto';
 
 @Controller('market-sessions')
 export class MarketSessionController {
@@ -15,29 +14,6 @@ export class MarketSessionController {
   @Public()
   async findActive() {
     return await this.marketSessionService.findActive();
-  }
-
-  /**
-   * 获取小盘的当前周期
-   * GET /api/market-sessions/sub-markets/:subMarketId/current-cycle
-   */
-  @Get('sub-markets/:subMarketId/current-cycle')
-  @Public()
-  async getCurrentCycle(@Param('subMarketId') subMarketId: string) {
-    return await this.marketSessionService.getCurrentCycle(subMarketId);
-  }
-
-  /**
-   * 获取小盘历史周期（用户端）
-   * GET /api/market-sessions/sub-markets/:subMarketId/cycles
-   */
-  @Get('sub-markets/:subMarketId/cycles')
-  @Public()
-  async getSubMarketCycles(
-    @Param('subMarketId') subMarketId: string,
-    @Query() dto: GetSubMarketCyclesDto,
-  ) {
-    return await this.marketSessionService.getSubMarketCycles(subMarketId, dto);
   }
 
   /**

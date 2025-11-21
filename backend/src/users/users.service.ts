@@ -146,17 +146,7 @@ export class UsersService {
       }
     }
 
-    // 暂时注释掉手机号唯一性检查
-    // // Check phone number uniqueness if updating phone
-    // if (updateUserDto.phoneNumber && updateUserDto.phoneNumber !== existingUser.phoneNumber) {
-    //   const phoneExists = await this.prisma.user.findUnique({
-    //     where: { phoneNumber: updateUserDto.phoneNumber },
-    //   });
-    //
-    //   if (phoneExists) {
-    //     throw new ConflictException('Phone number already in use');
-    //   }
-    // }
+    // 手机号不需要唯一性检查，允许多个用户使用相同手机号
 
     const updatedUser = await this.prisma.user.update({
       where: { id },

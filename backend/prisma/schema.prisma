@@ -48,7 +48,7 @@ model User {
   verificationStatus VerificationStatus @default(PENDING)
   winRate            Decimal            @default(0) @db.Decimal(5, 2)
   demoBalance        Decimal            @default(10000) @db.Decimal(18, 8)
-  phoneNumber        String             @unique
+  phoneNumber        String?            // 手机号可选，不唯一
   realBalance        Decimal            @default(0) @db.Decimal(18, 8)
   isCustomMember     Boolean            @default(false) // 是否为自定义会员（后台创建）
   createdBy          String? // 创建者（管理员ID），仅自定义会员有值
@@ -151,10 +151,10 @@ model TransactionLog {
   accountType      AccountType       @default(DEMO)
   isManaged        Boolean           @default(false) // 是否在托管状态下产生的交易
   tradingCycleId   String? // 关联的交易周期ID（托管模式）
-  subMarketCycleId String? // 关联的小盘周期ID（大盘小盘模式）
+  marketSessionId  String? // 关联的大盘ID
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   tradingCycle     TradingCycle?     @relation(fields: [tradingCycleId], references: [id], onDelete: SetNull)
-  subMarketCycle   SubMarketCycle?   @relation("SubMarketCycleTransactions", fields: [subMarketCycleId], references: [id], onDelete: SetNull)
+  marketSession    MarketSession?    @relation(fields: [marketSessionId], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
   @@index([userId, accountType])
@@ -162,7 +162,7 @@ model TransactionLog {
   @@index([assetType, createdAt])
   @@index([entryTime, expiryTime])
   @@index([tradingCycleId])
-  @@index([subMarketCycleId])
+  @@index([marketSessionId])
   @@index([isManaged])
 }
 
@@ -334,6 +334,7 @@ enum TradingSessionStatus {
   PAUSED // 已暂停
 }
 
+// 交易周期状态（托管模式）
 enum CycleStatus {
   PENDING // 待开始
   RUNNING // 进行中
@@ -341,7 +342,7 @@ enum CycleStatus {
   FAILED // 失败
 }
 
-// ==================== 大盘小盘系统 ====================
+// ==================== 大盘系统 ====================
 
 // 大盘表 - 管理开盘时段和整体市场
 model MarketSession {
@@ -353,7 +354,7 @@ model MarketSession {
   initialResult MarketResult        @default(PENDING) // 初始输赢状态
   actualResult  MarketResult? // 实际结算结果
   status        MarketSessionStatus @default(PENDING) // 大盘状态
-  tradeTypes    Json? // 支持的交易类型（冗余字段）
+  tradeTypes    Json? // 支持的交易类型
   assetType     String? // 资产类型，如 "BTC/USDT"
 
   createdById   String // 创建者（管理员ID）
@@ -361,63 +362,10 @@ model MarketSession {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  subMarkets SubMarket[] // 关联的小盘
+  transactions  TransactionLog[] // 关联的交易流水
 
   @@index([status, startTime])
   @@index([createdAt])
-}
-
-// 小盘表 - 基于不同利率的独立交易盘
-model SubMarket {
-  id              String          @id @default(uuid())
-  marketSessionId String // 关联的大盘ID
-  name            String // 小盘名称，如 "30秒 - 85%利率"
-  tradeDuration   Int // 交易时长（秒）
-  profitRate      Decimal         @db.Decimal(5, 2) // 利率（0-200）
-  status          SubMarketStatus @default(PENDING) // 小盘状态
-
-  startTime DateTime? // 实际开始时间
-  endTime   DateTime? // 实际结束时间
-
-  totalCycles     Int @default(0) // 总周期数
-  completedCycles Int @default(0) // 已完成周期数
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  marketSession MarketSession    @relation(fields: [marketSessionId], references: [id], onDelete: Cascade)
-  cycles        SubMarketCycle[] // 小盘的交易周期
-
-  @@index([marketSessionId, status])
-  @@index([tradeDuration])
-  @@index([status, startTime])
-}
-
-// 小盘周期表 - 小盘的单个交易周期
-model SubMarketCycle {
-  id          String      @id @default(uuid())
-  subMarketId String // 关联的小盘ID
-  cycleNumber Int // 周期编号
-  startTime   DateTime // 周期开始时间
-  endTime     DateTime // 周期结束时间
-  status      CycleStatus @default(PENDING) // 周期状态
-
-  // 价格信息
-  startPrice Decimal? @db.Decimal(18, 8)
-  endPrice   Decimal? @db.Decimal(18, 8)
-
-  // 统计信息
-  orderCount  Int     @default(0) // 该周期的订单数
-  totalAmount Decimal @default(0) @db.Decimal(18, 8) // 总投注金额
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  subMarket    SubMarket        @relation(fields: [subMarketId], references: [id], onDelete: Cascade)
-  transactions TransactionLog[] @relation("SubMarketCycleTransactions") // 该周期的交易流水
-
-  @@index([subMarketId, cycleNumber])
-  @@index([status, startTime])
 }
 
 // 大盘状态
@@ -426,14 +374,6 @@ enum MarketSessionStatus {
   ACTIVE // 进行中
   COMPLETED // 已完成
   CANCELED // 已取消
-}
-
-// 小盘状态
-enum SubMarketStatus {
-  PENDING // 待开始
-  ACTIVE // 运行中
-  COMPLETED // 已完成
-  STOPPED // 已停止
 }
 
 // 市场结果（输赢状态）
