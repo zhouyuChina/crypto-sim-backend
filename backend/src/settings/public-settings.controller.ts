@@ -18,4 +18,16 @@ export class PublicSettingsController {
       data: await this.settingsService.getDepositAddress(),
     };
   }
+
+  /**
+   * 获取分享内容设置（客户端）
+   * GET /settings/share/config
+   */
+  @Get('share/config')
+  @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
+  async getShareConfig() {
+    return {
+      data: await this.settingsService.getShareConfig(),
+    };
+  }
 }

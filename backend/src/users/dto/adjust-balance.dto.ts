@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsPositive, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, Min, IsOptional, IsString } from 'class-validator';
 
 export enum BalanceType {
   DEMO = 'demo',
@@ -19,7 +19,7 @@ export class AdjustBalanceDto {
   adjustmentType!: AdjustmentType;
 
   @IsNumber()
-  @IsPositive()
+  @Min(0, { message: 'Amount must be greater than or equal to 0' })
   amount!: number;
 
   @IsOptional()

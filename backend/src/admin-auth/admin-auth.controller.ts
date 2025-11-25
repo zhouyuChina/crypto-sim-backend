@@ -3,6 +3,7 @@ import { AdminAuthService } from './admin-auth.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -15,6 +16,12 @@ export class AdminAuthController {
   @Post('login')
   async login(@Body() loginDto: AdminLoginDto) {
     return this.adminAuthService.login(loginDto);
+  }
+
+  @Public()
+  @Post('refresh')
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.adminAuthService.refreshTokens(dto.refreshToken);
   }
 
   @UseGuards(JwtAuthGuard)

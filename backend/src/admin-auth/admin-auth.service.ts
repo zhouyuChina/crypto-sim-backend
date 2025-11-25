@@ -87,6 +87,62 @@ export class AdminAuthService {
     return { message: '登出成功' };
   }
 
+  async refreshTokens(refreshToken: string) {
+    try {
+      // 验证 refresh token
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get<string>('auth.jwt.refreshTokenSecret'),
+      });
+
+      // 查找管理员
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: payload.sub },
+      });
+
+      if (!admin || !admin.isActive || !admin.refreshTokenHash) {
+        throw new UnauthorizedException('无效的刷新令牌');
+      }
+
+      // 验证 refresh token hash
+      const isValid = await bcrypt.compare(refreshToken, admin.refreshTokenHash);
+      if (!isValid) {
+        throw new UnauthorizedException('无效的刷新令牌');
+      }
+
+      // 生成新的 tokens
+      const tokenPayload = {
+        sub: admin.id,
+        username: admin.username,
+        email: admin.email,
+        type: 'admin',
+      };
+
+      const accessToken = this.jwtService.sign(tokenPayload, {
+        secret: this.configService.get<string>('auth.jwt.accessTokenSecret'),
+        expiresIn: this.configService.get<string>('auth.jwt.accessTokenTtl'),
+      });
+
+      const newRefreshToken = this.jwtService.sign(tokenPayload, {
+        secret: this.configService.get<string>('auth.jwt.refreshTokenSecret'),
+        expiresIn: this.configService.get<string>('auth.jwt.refreshTokenTtl'),
+      });
+
+      // 更新 refresh token hash
+      const newRefreshTokenHash = await bcrypt.hash(newRefreshToken, 12);
+      await this.prisma.admin.update({
+        where: { id: admin.id },
+        data: { refreshTokenHash: newRefreshTokenHash },
+      });
+
+      return {
+        accessToken,
+        refreshToken: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException('刷新令牌失败');
+    }
+  }
+
   async validateAdmin(adminId: string) {
     const admin = await this.prisma.admin.findUnique({
       where: { id: adminId },

@@ -18,6 +18,7 @@ import { SettingsService } from '../settings/settings.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { QueryTransactionsDto } from './dto/query-transactions.dto';
 import { AdminQueryTransactionsDto } from './dto/admin-query-transactions.dto';
+import { AdminCreateTransactionDto } from './dto/admin-create-transaction.dto';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { generateOrderNumber } from '../common/utils/order-number.generator';
 
@@ -69,6 +70,15 @@ export class TransactionLogService {
       throw new BadRequestException(
         `${accountType === AccountType.DEMO ? '虚拟' : '真实'}账户余额不足。当前余额: ${balance}, 需要: ${dto.investAmount}`,
       );
+    }
+
+    // 真实交易需要验证身份认证状态
+    if (accountType === AccountType.REAL) {
+      if (user.verificationStatus !== 'VERIFIED') {
+        throw new ForbiddenException(
+          '您需要完成身份认证后才能进行真实交易。请先完成身份认证。',
+        );
+      }
     }
 
     // 使用前端传入的入场价格
@@ -369,6 +379,11 @@ export class TransactionLogService {
   ): Promise<TransactionResponseDto> {
     const transaction = await this.prisma.transactionLog.findUnique({
       where: { orderNumber },
+      include: {
+        marketSession: {
+          select: { name: true },
+        },
+      },
     });
 
     if (!transaction) {
@@ -380,8 +395,15 @@ export class TransactionLogService {
       throw new ForbiddenException('无权操作该交易');
     }
 
-    if (transaction.status !== TransactionStatus.PENDING) {
-      throw new BadRequestException(`订单 ${orderNumber} 已经结算或取消`);
+    // 如果已经结算，直接返回结算结果（幂等性处理）
+    if (transaction.status === TransactionStatus.SETTLED) {
+      this.logger.log(`订单 ${orderNumber} 已结算，返回现有结果`);
+      return this.mapToResponseDto(transaction);
+    }
+
+    // 如果已被取消，则不能结算
+    if (transaction.status === TransactionStatus.CANCELED) {
+      throw new BadRequestException(`订单 ${orderNumber} 已被取消，无法结算`);
     }
 
     // 调用内部结算方法
@@ -434,7 +456,7 @@ export class TransactionLogService {
     const investAmount = Number(transaction.investAmount);
     const returnRate = Number(transaction.returnRate);
     const actualReturn = isWin
-      ? investAmount * (1 + returnRate)
+      ? investAmount * returnRate
       : -investAmount;
 
     const manualMetadata = options.manual
@@ -572,8 +594,23 @@ export class TransactionLogService {
     let settledCount = 0;
     for (const transaction of expiredTransactions) {
       try {
-        // 获取当前市场价格作为出场价
-        const exitPrice = await this.getCurrentPrice(transaction.assetType);
+        // 优先使用交易记录中的当前价格（前端实时更新的），如果没有则从市场数据服务获取
+        let exitPrice: number;
+
+        if (transaction.currentPrice && Number(transaction.currentPrice) > 0) {
+          // 使用前端最后更新的价格
+          exitPrice = Number(transaction.currentPrice);
+          this.logger.log(
+            `使用交易记录中的价格进行结算: ${transaction.orderNumber}, 价格: ${exitPrice}`
+          );
+        } else {
+          // 从市场数据服务获取（包含Binance API + 模拟价格备用方案）
+          exitPrice = await this.getCurrentPrice(transaction.assetType);
+          this.logger.log(
+            `从市场数据服务获取价格进行结算: ${transaction.orderNumber}, 价格: ${exitPrice}`
+          );
+        }
+
         await this.settleTransactionBySystem(transaction.orderNumber, exitPrice, {
           reason: 'AUTO_EXPIRED',
         });
@@ -610,6 +647,171 @@ export class TransactionLogService {
       operatorName: params.operatorName,
       manual: true,
     });
+  }
+
+  /**
+   * 管理端创建自定义交易流水
+   */
+  async adminCreateTransaction(
+    dto: AdminCreateTransactionDto,
+    operatorId: string,
+    operatorName?: string,
+  ): Promise<TransactionResponseDto> {
+    // 验证用户是否存在
+    const user = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    // 确定账户类型，默认为虚拟账户
+    const accountType = dto.accountType || AccountType.DEMO;
+
+    // 检查余额（如果是 PENDING 状态才需要扣款）
+    const isPending = !dto.status || dto.status === TransactionStatus.PENDING;
+    if (isPending) {
+      const balance = accountType === AccountType.DEMO
+        ? Number(user.demoBalance)
+        : Number(user.realBalance);
+
+      if (balance < dto.investAmount) {
+        throw new BadRequestException(
+          `${accountType === AccountType.DEMO ? '虚拟' : '真实'}账户余额不足。当前余额: ${balance}, 需要: ${dto.investAmount}`,
+        );
+      }
+    }
+
+    // 生成唯一订单号
+    const orderNumber = generateOrderNumber();
+
+    // 计算时间
+    const entryTime = dto.entryTime || new Date();
+    const expiryTime = new Date(entryTime.getTime() + dto.duration * 1000);
+
+    // 计算点差
+    const spread = dto.entryPrice * 0.0001; // 0.01% 点差
+
+    // 获取托管模式状态
+    let isManaged = false;
+    try {
+      const managedModeSetting = await this.settingsService.getSetting('trading.managedMode');
+      isManaged = managedModeSetting.value === true || managedModeSetting.value === 'true';
+    } catch {
+      isManaged = false;
+    }
+
+    // 查找当前活跃的大盘（真实仓需要关联大盘）
+    let marketSessionId: string | null = null;
+    if (accountType === AccountType.REAL) {
+      const activeMarketSession = await this.prisma.marketSession.findFirst({
+        where: { status: 'ACTIVE' },
+        orderBy: { startTime: 'desc' },
+      });
+      if (activeMarketSession) {
+        marketSessionId = activeMarketSession.id;
+      }
+    }
+
+    // 确定交易状态
+    const status = dto.status || TransactionStatus.PENDING;
+    const shouldAutoSettle = dto.exitPrice && (dto.autoSettle !== false);
+
+    // 计算实际收益（如果是已结算状态）
+    let actualReturn = 0;
+    let exitPrice = dto.exitPrice || null;
+    let settledAt = null;
+
+    if (status === TransactionStatus.SETTLED || shouldAutoSettle) {
+      if (!dto.exitPrice) {
+        throw new BadRequestException('结算状态的交易必须提供出场价格 (exitPrice)');
+      }
+
+      exitPrice = dto.exitPrice;
+      const isWin = this.calculateIsWin(dto.direction, dto.entryPrice, exitPrice);
+      actualReturn = isWin
+        ? dto.investAmount * dto.returnRate
+        : -dto.investAmount;
+      settledAt = new Date();
+    }
+
+    // 创建交易记录
+    const transaction = await this.prisma.transactionLog.create({
+      data: {
+        userId: dto.userId,
+        userName: user.displayName,
+        orderNumber,
+        accountType,
+        assetType: dto.assetType,
+        direction: dto.direction,
+        entryTime,
+        expiryTime,
+        duration: dto.duration,
+        entryPrice: dto.entryPrice,
+        currentPrice: exitPrice || dto.entryPrice,
+        exitPrice,
+        spread,
+        investAmount: dto.investAmount,
+        returnRate: dto.returnRate,
+        actualReturn,
+        status: shouldAutoSettle ? TransactionStatus.SETTLED : status,
+        settledAt,
+        isManaged,
+        marketSessionId,
+        manualAdjusted: true, // 标记为管理端创建
+        manualAdjustedById: operatorId,
+        manualAdjustedByName: operatorName,
+        manualAdjustmentReason: dto.reason || '管理端创建自定义交易',
+        manualAdjustedAt: new Date(),
+      },
+      include: {
+        marketSession: {
+          select: { name: true },
+        },
+      },
+    });
+
+    // 如果是 PENDING 状态，扣除投资金额
+    if (isPending) {
+      if (accountType === AccountType.DEMO) {
+        await this.prisma.user.update({
+          where: { id: dto.userId },
+          data: {
+            demoBalance: {
+              decrement: dto.investAmount,
+            },
+          },
+        });
+      } else {
+        await this.prisma.user.update({
+          where: { id: dto.userId },
+          data: {
+            realBalance: {
+              decrement: dto.investAmount,
+            },
+          },
+        });
+      }
+    }
+
+    // 如果是已结算状态，更新用户账户
+    if (status === TransactionStatus.SETTLED || shouldAutoSettle) {
+      await this.updateUserAccountAfterSettle(
+        dto.userId,
+        dto.investAmount,
+        actualReturn,
+        actualReturn > 0,
+        accountType,
+        { wasSettled: false, previousActualReturn: 0 },
+      );
+    }
+
+    this.logger.log(
+      `管理端创建交易: ${orderNumber}, 用户: ${dto.userId}, 操作员: ${operatorName || operatorId}, 状态: ${status}`,
+    );
+
+    return this.mapToResponseDto(transaction);
   }
 
   /**

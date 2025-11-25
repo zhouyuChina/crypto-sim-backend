@@ -82,7 +82,18 @@
       "Bash(/tmp/test_support_chat_v3.sh)",
       "Bash(/tmp/admin_login.json)",
       "Bash(/tmp/test_support_api.sh)",
-      "Bash(npm run start:*)"
+      "Bash(npm run start:*)",
+      "Bash(/tmp/test_verification_trading.sh)",
+      "Bash(PGPASSWORD= psql:*)",
+      "Bash(/tmp/create_test_users.sh:*)",
+      "Bash(/tmp/test_verification_trading_v2.sh)",
+      "Bash(/tmp/test_balance_validation.sh:*)",
+      "Bash(/tmp/test_settlement.sh)",
+      "Bash(/tmp/test_admin_transactions.sh)",
+      "Bash(/tmp/force_settle.sh)",
+      "Bash(/tmp/manual_settle_all.sh)",
+      "Bash(/tmp/test_update_price.sh)",
+      "Bash(/tmp/test_complete_flow.sh)"
     ],
     "deny": [],
     "ask": []
