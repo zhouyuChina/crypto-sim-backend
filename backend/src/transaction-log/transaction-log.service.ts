@@ -8,13 +8,13 @@ import {
 import {
   Prisma,
   TransactionStatus,
-  TradeDirection,
   AccountType,
 } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from '../market-data/market-data.service';
 import { SettingsService } from '../settings/settings.service';
+import { AdminTradingGateway } from '../admin-trading/admin-trading.gateway';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { QueryTransactionsDto } from './dto/query-transactions.dto';
 import { AdminQueryTransactionsDto } from './dto/admin-query-transactions.dto';
@@ -40,6 +40,7 @@ export class TransactionLogService {
     private readonly prisma: PrismaService,
     private readonly marketDataService: MarketDataService,
     private readonly settingsService: SettingsService,
+    private readonly adminTradingGateway: AdminTradingGateway,
   ) {}
 
   /**
@@ -173,7 +174,13 @@ export class TransactionLogService {
       `交易创建成功: ${orderNumber}, 用户: ${userId}, 账户类型: ${accountType}, 资产: ${dto.assetType}`,
     );
 
-    return this.mapToResponseDto(transaction);
+    // 实时推送新交易到管理端
+    const responseDto = this.mapToResponseDto(transaction);
+    this.logger.log(`准备推送新交易到管理端: ${orderNumber}`);
+    this.adminTradingGateway.broadcastNewTransaction(responseDto);
+    this.logger.log(`新交易已推送: ${orderNumber}`);
+
+    return responseDto;
   }
 
   /**
@@ -437,20 +444,16 @@ export class TransactionLogService {
         ? exitPrice
         : await this.getCurrentPrice(transaction.assetType);
 
-    // 真实仓交易没有关联大盘时直接判输
+    // 新的判赢逻辑：默认全部判输，只有强制设置为WIN时才判赢
     let isWin: boolean;
-    if (transaction.accountType === AccountType.REAL && !transaction.marketSessionId) {
-      // 无大盘关联，直接判输
-      isWin = false;
-      this.logger.warn(`交易 ${orderNumber} 无大盘关联，直接判输`);
-    } else if (options.forcedResult) {
+    if (options.forcedResult) {
+      // 只有强制设置为WIN时才判赢
       isWin = options.forcedResult === 'WIN';
+      this.logger.log(`交易 ${orderNumber} 强制结算，结果: ${isWin ? '赢' : '输'}`);
     } else {
-      isWin = this.calculateIsWin(
-        transaction.direction,
-        Number(transaction.entryPrice),
-        resolvedExitPrice,
-      );
+      // 默认判输
+      isWin = false;
+      this.logger.log(`交易 ${orderNumber} 自动结算，默认判输`);
     }
 
     const investAmount = Number(transaction.investAmount);
@@ -506,7 +509,15 @@ export class TransactionLogService {
       }`,
     );
 
-    return this.mapToResponseDto(updatedTransaction);
+    // 实时推送交易状态变更到管理端
+    const responseDto = this.mapToResponseDto(updatedTransaction);
+    this.adminTradingGateway.broadcastTransactionStatusChange(
+      responseDto,
+      transaction.status,
+      TransactionStatus.SETTLED,
+    );
+
+    return responseDto;
   }
 
   /**
@@ -729,11 +740,13 @@ export class TransactionLogService {
       }
 
       exitPrice = dto.exitPrice;
-      const isWin = this.calculateIsWin(dto.direction, dto.entryPrice, exitPrice);
+      // 管理员创建交易时默认判输
+      const isWin = false;
       actualReturn = isWin
         ? dto.investAmount * dto.returnRate
         : -dto.investAmount;
       settledAt = new Date();
+      this.logger.log(`管理员创建已结算交易: ${orderNumber}, 默认判输`);
     }
 
     // 创建交易记录
@@ -811,7 +824,11 @@ export class TransactionLogService {
       `管理端创建交易: ${orderNumber}, 用户: ${dto.userId}, 操作员: ${operatorName || operatorId}, 状态: ${status}`,
     );
 
-    return this.mapToResponseDto(transaction);
+    // 实时推送新交易到管理端
+    const responseDto = this.mapToResponseDto(transaction);
+    this.adminTradingGateway.broadcastNewTransaction(responseDto);
+
+    return responseDto;
   }
 
   /**
@@ -876,23 +893,6 @@ export class TransactionLogService {
         `获取 ${assetType} 最新价格失败: ${(error as Error).message}`,
       );
       throw new BadRequestException('暂时无法获取实时价格，请稍后再试');
-    }
-  }
-
-  /**
-   * 判断交易是否盈利
-   */
-  private calculateIsWin(
-    direction: TradeDirection,
-    entryPrice: number,
-    exitPrice: number,
-  ): boolean {
-    if (direction === TradeDirection.CALL) {
-      // 买涨：出场价 > 入场价
-      return exitPrice > entryPrice;
-    } else {
-      // 买跌：出场价 < 入场价
-      return exitPrice < entryPrice;
     }
   }
 

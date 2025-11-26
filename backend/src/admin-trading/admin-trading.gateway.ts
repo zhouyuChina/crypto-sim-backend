@@ -210,10 +210,12 @@ export class AdminTradingGateway implements OnGatewayConnection, OnGatewayDiscon
    * 广播新交易
    */
   broadcastNewTransaction(transaction: any) {
+    this.logger.log(`广播新交易: ${transaction.orderNumber}, 当前订阅者: ${this.subscribers.size}`);
     this.server.to('trading:monitor').emit('trading:new-transaction', {
       transaction,
       timestamp: new Date(),
     });
+    this.logger.log(`新交易广播完成: ${transaction.orderNumber}`);
   }
 
   /**

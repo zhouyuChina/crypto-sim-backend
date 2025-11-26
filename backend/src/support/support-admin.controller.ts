@@ -14,6 +14,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { SupportService } from './support.service';
+import { SupportGateway } from './support.gateway';
 import { GetConversationsDto } from './dto/get-conversations.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 
@@ -21,7 +22,10 @@ import { SendMessageDto } from './dto/send-message.dto';
 export class SupportAdminController {
   private readonly logger = new Logger(SupportAdminController.name);
 
-  constructor(private readonly supportService: SupportService) {}
+  constructor(
+    private readonly supportService: SupportService,
+    private readonly supportGateway: SupportGateway,
+  ) {}
 
   /**
    * 获取对话列表
@@ -86,7 +90,8 @@ export class SupportAdminController {
   @Post('messages')
   @Roles('admin')
   async sendMessage(@Body() dto: SendMessageDto, @CurrentUser() admin: any) {
-    return await this.supportService.sendMessage(
+    // 保存消息到数据库
+    const message = await this.supportService.sendMessage(
       dto.conversationId,
       admin.id,
       'ADMIN',
@@ -95,6 +100,14 @@ export class SupportAdminController {
       dto.content,
       dto.metadata,
     );
+
+    // 通过 WebSocket 实时推送给用户
+    const roomName = `support:conversation:${dto.conversationId}`;
+    this.supportGateway.server.to(roomName).emit('support:message', message);
+
+    this.logger.log(`管理员消息已发送并推送: ${message.id}`);
+
+    return message;
   }
 
   /**
