@@ -1,6 +1,7 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AdminTradingSseService } from './admin-trading-sse.service';
 
 @Injectable()
 export class AdminTradingService {
@@ -9,6 +10,8 @@ export class AdminTradingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    @Inject(forwardRef(() => AdminTradingSseService))
+    private readonly sseService: AdminTradingSseService,
   ) {}
 
   /**

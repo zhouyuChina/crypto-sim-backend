@@ -5,6 +5,7 @@ import { PaginatedUsersResponseDto, UserResponseDto } from './dto/user-response.
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 import { AdjustBalanceDto } from './dto/adjust-balance.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('admin/users')
@@ -68,5 +69,14 @@ export class UsersController {
   @Roles('admin')
   async remove(@Param('id') id: string): Promise<{ message: string }> {
     return this.usersService.remove(id);
+  }
+
+  @Patch(':id/reset-password')
+  @Roles('admin')
+  async resetPassword(
+    @Param('id') id: string,
+    @Body() resetPasswordDto: ResetPasswordDto,
+  ): Promise<UserResponseDto> {
+    return this.usersService.resetPassword(id, resetPasswordDto.newPassword);
   }
 }

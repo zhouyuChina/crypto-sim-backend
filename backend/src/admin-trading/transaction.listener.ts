@@ -1,12 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AdminTradingGateway } from './admin-trading.gateway';
+import { AdminTradingSseService } from './admin-trading-sse.service';
 
 @Injectable()
 export class TransactionListener {
   private readonly logger = new Logger(TransactionListener.name);
 
-  constructor(private readonly adminTradingGateway: AdminTradingGateway) {}
+  constructor(
+    private readonly adminTradingGateway: AdminTradingGateway,
+    private readonly sseService: AdminTradingSseService,
+  ) {}
 
   /**
    * 监听交易创建事件
@@ -14,7 +18,12 @@ export class TransactionListener {
   @OnEvent('transaction.created')
   handleTransactionCreated(payload: any) {
     this.logger.log(`新交易创建: ${payload.transaction.id}`);
+
+    // WebSocket 推送
     this.adminTradingGateway.broadcastNewTransaction(payload.transaction);
+
+    // SSE 推送
+    this.sseService.pushNewTransaction(payload.transaction);
   }
 
   /**
@@ -24,7 +33,12 @@ export class TransactionListener {
   handleTransactionStatusChanged(payload: any) {
     const { transaction, oldStatus, newStatus } = payload;
     this.logger.log(`交易状态变更: ${transaction.id} (${oldStatus} -> ${newStatus})`);
+
+    // WebSocket 推送
     this.adminTradingGateway.broadcastTransactionStatusChange(transaction, oldStatus, newStatus);
+
+    // SSE 推送
+    this.sseService.pushTransactionStatusChange(transaction, oldStatus, newStatus);
   }
 
   /**
@@ -33,7 +47,12 @@ export class TransactionListener {
   @OnEvent('transaction.edited')
   handleTransactionEdited(payload: any) {
     this.logger.log(`交易已编辑: ${payload.transaction.id}`);
+
+    // WebSocket 推送
     this.adminTradingGateway.broadcastTransactionUpdate(payload.transaction, 'edited');
+
+    // SSE 推送
+    this.sseService.pushTransactionUpdate(payload.transaction, 'edited');
   }
 
   /**
@@ -42,7 +61,12 @@ export class TransactionListener {
   @OnEvent('transaction.cancelled')
   handleTransactionCancelled(payload: any) {
     this.logger.log(`交易已取消: ${payload.transaction.id}`);
+
+    // WebSocket 推送
     this.adminTradingGateway.broadcastTransactionUpdate(payload.transaction, 'cancelled');
+
+    // SSE 推送
+    this.sseService.pushTransactionUpdate(payload.transaction, 'cancelled');
   }
 
   /**
@@ -51,7 +75,12 @@ export class TransactionListener {
   @OnEvent('transaction.force-settled')
   handleTransactionForceSettled(payload: any) {
     this.logger.log(`交易已强制结算: ${payload.transaction.id}`);
+
+    // WebSocket 推送
     this.adminTradingGateway.broadcastTransactionUpdate(payload.transaction, 'force-settled');
+
+    // SSE 推送
+    this.sseService.pushTransactionUpdate(payload.transaction, 'force-settled');
   }
 
   /**
@@ -60,6 +89,11 @@ export class TransactionListener {
   @OnEvent('transaction.updated')
   handleTransactionUpdated(payload: any) {
     this.logger.log(`交易已更新: ${payload.transaction.id}`);
+
+    // WebSocket 推送
     this.adminTradingGateway.broadcastTransactionUpdate(payload.transaction, 'updated');
+
+    // SSE 推送
+    this.sseService.pushTransactionUpdate(payload.transaction, 'updated');
   }
 }

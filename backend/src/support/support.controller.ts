@@ -12,17 +12,24 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  Sse,
+  MessageEvent,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Observable } from 'rxjs';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { SupportService } from './support.service';
+import { SupportSseService } from './support-sse.service';
 import { GetMessagesDto } from './dto/get-messages.dto';
 
 @Controller('support')
 export class SupportController {
   private readonly logger = new Logger(SupportController.name);
 
-  constructor(private readonly supportService: SupportService) {}
+  constructor(
+    private readonly supportService: SupportService,
+    private readonly sseService: SupportSseService,
+  ) {}
 
   /**
    * 获取或创建用户的对话
@@ -43,13 +50,15 @@ export class SupportController {
       this.logger.log(`getMessages called - User: ${user.id}, ConversationId: ${dto.conversationId || 'not provided'}, Limit: ${dto.limit}, Offset: ${dto.offset}`);
 
       // 如果没有传 conversationId，使用当前用户的对话
-      let conversationId = dto.conversationId;
+      let conversationId: string;
 
-      if (!conversationId) {
+      if (!dto.conversationId) {
         this.logger.log(`No conversationId provided, fetching user conversation for user: ${user.id}`);
         const conversation = await this.supportService.getOrCreateUserConversation(user.id, user.displayName);
         conversationId = conversation.id;
         this.logger.log(`Using conversation: ${conversationId}`);
+      } else {
+        conversationId = dto.conversationId;
       }
 
       // 确保 limit 和 offset 是数字
@@ -133,5 +142,72 @@ export class SupportController {
   @Get('conversations')
   async getUserConversations(@CurrentUser() user: any, @Query('limit') limit?: number) {
     return await this.supportService.getUserConversations(user.id, limit || 10);
+  }
+
+  /**
+   * SSE 订阅对话消息（客户端专用）
+   * GET /api/support/sse/messages
+   */
+  @Sse('sse/messages')
+  subscribeToMessages(
+    @CurrentUser() user: any,
+    @Query('conversationId') conversationId?: string,
+  ): Observable<MessageEvent> {
+    return new Observable((observer) => {
+      // 获取或创建对话
+      (async () => {
+        try {
+          let actualConversationId: string;
+
+          if (!conversationId) {
+            const conversation = await this.supportService.getOrCreateUserConversation(
+              user.id,
+              user.displayName,
+            );
+            actualConversationId = conversation.id;
+          } else {
+            actualConversationId = conversationId;
+          }
+
+          this.logger.log(
+            `用户 ${user.id} 订阅对话 ${actualConversationId} 的 SSE 消息流`,
+          );
+
+          // 订阅 SSE 消息流
+          const subject = this.sseService.subscribe(actualConversationId);
+
+          // 转发消息到客户端
+          const subscription = subject.subscribe({
+            next: (event: MessageEvent) => observer.next(event),
+            error: (err: any) => {
+              this.logger.error(`SSE 推送错误: ${err.message}`);
+              observer.error(err);
+            },
+            complete: () => observer.complete(),
+          });
+
+          // 发送连接成功消息
+          observer.next({
+            data: {
+              type: 'connected',
+              conversationId: actualConversationId,
+              message: 'SSE 连接成功',
+            },
+          });
+
+          // 客户端断开时清理
+          return () => {
+            this.logger.log(
+              `用户 ${user.id} 断开对话 ${actualConversationId} 的 SSE 连接`,
+            );
+            subscription.unsubscribe();
+            this.sseService.unsubscribe(actualConversationId, subject);
+          };
+        } catch (error) {
+          this.logger.error(`SSE 订阅失败: ${error}`);
+          observer.error(error);
+        }
+      })();
+    });
   }
 }

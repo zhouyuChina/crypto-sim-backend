@@ -2,22 +2,28 @@ import { Injectable, Logger, NotFoundException, ForbiddenException, Inject, forw
 import { PrismaService } from '../prisma/prisma.service';
 import { ConversationStatus, SenderType, MessageType } from '@prisma/client';
 import { SupportGateway } from './support.gateway';
+import { SupportSseService } from './support-sse.service';
 
 @Injectable()
 export class SupportService {
   private readonly logger = new Logger(SupportService.name);
 
+  // 用于防止并发创建对话的锁
+  private readonly creatingConversations = new Map<string, Promise<any>>();
+
   constructor(
     public readonly prisma: PrismaService,
     @Inject(forwardRef(() => SupportGateway))
     private readonly supportGateway: SupportGateway,
+    private readonly sseService: SupportSseService,
   ) {}
 
   /**
    * 获取或创建用户的对话
+   * 使用内存锁防止并发创建重复对话
    */
   async getOrCreateUserConversation(userId: string, userName?: string) {
-    // 查找用户的活跃对话（PENDING 或 ACTIVE）
+    // 先尝试查找用户的活跃对话（PENDING 或 ACTIVE）
     let conversation = await this.prisma.chatConversation.findFirst({
       where: {
         userId,
@@ -31,23 +37,64 @@ export class SupportService {
       },
     });
 
-    // 如果没有活跃对话，创建新对话
-    if (!conversation) {
-      conversation = await this.prisma.chatConversation.create({
-        data: {
-          userId,
-          userName: userName || null,
-          status: 'PENDING',
-        },
-        include: {
-          messages: true,
-        },
-      });
-
-      this.logger.log(`创建新对话: ${conversation.id} for user ${userId}`);
+    // 如果找到了，直接返回
+    if (conversation) {
+      return conversation;
     }
 
-    return conversation;
+    // 检查是否正在创建中
+    const existingPromise = this.creatingConversations.get(userId);
+    if (existingPromise) {
+      this.logger.log(`等待已有的创建请求完成: userId=${userId}`);
+      return existingPromise;
+    }
+
+    // 创建新对话的 Promise
+    const createPromise = (async () => {
+      try {
+        // 再次检查（双重检查锁定模式）
+        const existingConversation = await this.prisma.chatConversation.findFirst({
+          where: {
+            userId,
+            status: { in: ['PENDING', 'ACTIVE'] },
+          },
+          include: {
+            messages: {
+              orderBy: { createdAt: 'asc' },
+              take: 50,
+            },
+          },
+        });
+
+        if (existingConversation) {
+          this.logger.log(`发现已存在的对话: ${existingConversation.id}`);
+          return existingConversation;
+        }
+
+        // 创建新对话
+        const newConversation = await this.prisma.chatConversation.create({
+          data: {
+            userId,
+            userName: userName || null,
+            status: 'PENDING',
+          },
+          include: {
+            messages: true,
+          },
+        });
+
+        this.logger.log(`创建新对话: ${newConversation.id} for user ${userId}`);
+        return newConversation;
+      } finally {
+        // 清理锁
+        this.creatingConversations.delete(userId);
+      }
+    })();
+
+    // 存储创建 Promise
+    this.creatingConversations.set(userId, createPromise);
+
+    return createPromise;
   }
 
   /**
@@ -135,7 +182,11 @@ export class SupportService {
     // ✅ 通过 WebSocket 实时推送消息
     const roomName = `support:conversation:${conversationId}`;
     this.supportGateway.server.to(roomName).emit('support:message', message);
-    this.logger.log(`消息已推送到房间: ${roomName}`);
+    this.logger.log(`消息已推送到 WebSocket 房间: ${roomName}`);
+
+    // ✅ 通过 SSE 实时推送消息（用于客户端）
+    this.sseService.pushMessage(conversationId, message);
+    this.logger.log(`消息已推送到 SSE: ${conversationId}`);
 
     return message;
   }

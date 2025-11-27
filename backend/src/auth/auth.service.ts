@@ -269,4 +269,55 @@ export class AuthService {
 
     return this.sanitizeUser(updatedUser);
   }
+
+  /**
+   * 用户修改密码
+   */
+  async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    // 验证旧密码
+    const isOldPasswordValid = await this.compareValue(oldPassword, user.passwordHash);
+    if (!isOldPasswordValid) {
+      throw new UnauthorizedException('旧密码不正确');
+    }
+
+    // 更新为新密码
+    const newPasswordHash = await this.hashValue(newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    this.logger.log(`用户 ${userId} 修改密码成功`);
+  }
+
+  /**
+   * 用户上传头像
+   */
+  async updateAvatar(userId: string, avatarUrl: string): Promise<UserEntity> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    // 更新头像
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatar: avatarUrl },
+    });
+
+    this.logger.log(`用户 ${userId} 上传头像成功: ${avatarUrl}`);
+
+    return this.sanitizeUser(updatedUser);
+  }
 }

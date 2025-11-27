@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryUsersDto } from './dto/query-users.dto';
 import { PaginatedUsersResponseDto, UserResponseDto } from './dto/user-response.dto';
@@ -7,9 +7,13 @@ import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 import { AdjustBalanceDto, BalanceType, AdjustmentType } from './dto/adjust-balance.dto';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+  private readonly saltRounds = 12;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: QueryUsersDto): Promise<PaginatedUsersResponseDto> {
@@ -371,5 +375,49 @@ export class UsersService {
     });
 
     return { message: `User ${id} has been deleted successfully` };
+  }
+
+  async resetPassword(id: string, newPassword: string): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    // 哈希新密码
+    const passwordHash = await bcrypt.hash(newPassword, this.saltRounds);
+
+    // 更新密码
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { passwordHash },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        phoneNumber: true,
+        avatar: true,
+        idCardFront: true,
+        idCardBack: true,
+        roles: true,
+        isActive: true,
+        verificationStatus: true,
+        lastLoginAt: true,
+        lastLoginIp: true,
+        createdAt: true,
+        updatedAt: true,
+        demoBalance: true,
+        realBalance: true,
+        totalProfitLoss: true,
+        totalTrades: true,
+        winRate: true,
+      },
+    });
+
+    this.logger.log(`管理员重置用户 ${id} 的密码`);
+
+    return new UserResponseDto(updatedUser);
   }
 }

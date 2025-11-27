@@ -10,6 +10,7 @@ import { SupportController } from './support.controller';
 import { SupportAdminController } from './support-admin.controller';
 import { SupportService } from './support.service';
 import { SupportGateway } from './support.gateway';
+import { SupportSseService } from './support-sse.service';
 
 @Module({
   imports: [
@@ -41,7 +42,7 @@ import { SupportGateway } from './support.gateway';
     }),
   ],
   controllers: [SupportController, SupportAdminController],
-  providers: [SupportService, SupportGateway],
+  providers: [SupportService, SupportGateway, SupportSseService],
   exports: [SupportService],
 })
 export class SupportModule {}
