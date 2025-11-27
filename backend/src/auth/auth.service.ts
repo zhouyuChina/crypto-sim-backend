@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +12,7 @@ import type { User } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import type { RegisterDto } from './dto/register.dto';
+import type { UpdateProfileDto } from './dto/update-profile.dto';
 import type { UserEntity } from './entities/user.entity';
 import type { Role } from '../common/decorators/roles.decorator';
 
@@ -42,24 +44,14 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
-    // 暂时注释掉手机号验证
-    // // 检查手机号是否已存在（如果提供了手机号）
-    // if (payload.phoneNumber) {
-    //   const existingPhone = await this.prisma.user.findUnique({
-    //     where: { phoneNumber: payload.phoneNumber }
-    //   });
-    //
-    //   if (existingPhone) {
-    //     throw new ConflictException('Phone number already registered');
-    //   }
-    // }
+    // 手机号不需要唯一性验证，允许多个用户使用相同手机号
 
     const passwordHash = await this.hashValue(payload.password);
     const user = await this.prisma.user.create({
       data: {
         email: payload.email,
         displayName: payload.displayName,
-        phoneNumber: `temp_${Date.now()}`,  // 暂时使用临时手机号
+        phoneNumber: payload.phoneNumber ?? null,  // 注册时手机号可选
         passwordHash,
         avatar: payload.avatar,  // 保存头像 URL
         roles: payload.roles ?? ['trader']
@@ -229,5 +221,52 @@ export class AuthService {
 
   private async compareValue(value: string, hash: string): Promise<boolean> {
     return bcrypt.compare(value, hash);
+  }
+
+  /**
+   * 用户更新手机号
+   * 手机号不需要唯一性，允许多个用户使用相同手机号
+   */
+  async updatePhoneNumber(userId: string, phoneNumber: string): Promise<UserEntity> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        phoneNumber,
+      },
+    });
+
+    return this.sanitizeUser(updatedUser);
+  }
+
+  /**
+   * 用户更新个人资料
+   */
+  async updateProfile(userId: string, updateProfileDto: UpdateProfileDto): Promise<UserEntity> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        displayName: updateProfileDto.displayName ?? user.displayName,
+        phoneNumber: updateProfileDto.phoneNumber ?? user.phoneNumber,
+        avatar: updateProfileDto.avatar ?? user.avatar,
+      },
+    });
+
+    return this.sanitizeUser(updatedUser);
   }
 }

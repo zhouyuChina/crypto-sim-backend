@@ -36,6 +36,9 @@ export class MarketDataService implements OnModuleInit, OnModuleDestroy {
   private readonly MAX_RECONNECT_DELAY = 60000; // 60 seconds
   private readonly PING_INTERVAL = 30000; // 30 seconds
   private readonly CONNECTION_TIMEOUT = 10000; // 10 seconds
+  private readonly PRICE_CACHE_TTL = 10_000; // 10 seconds
+  private readonly priceCache = new Map<string, { price: number; ts: number }>();
+  private readonly BINANCE_REST_BASE_URL = 'https://api.binance.com';
 
   constructor(
     private readonly configService: ConfigService,
@@ -236,6 +239,10 @@ export class MarketDataService implements OnModuleInit, OnModuleDestroy {
   private handleBinanceTicker(event: BinanceTickerEvent): void {
     const price = Number(event.c);
     const changePercent = Number(event.P);
+    const symbolKey = event.s.toUpperCase();
+
+    this.priceCache.set(symbolKey, { price, ts: Date.now() });
+
     const update = {
       symbol: event.s,
       price,
@@ -250,6 +257,86 @@ export class MarketDataService implements OnModuleInit, OnModuleDestroy {
     //   type: 'ticker',
     //   payload: update
     // });
+  }
+
+  async getLatestPrice(assetType: string): Promise<number> {
+    const symbol = this.normalizeSymbol(assetType);
+    if (!symbol) {
+      throw new Error(`无法识别的资产类型: ${assetType}`);
+    }
+
+    const cached = this.priceCache.get(symbol);
+    if (cached && Date.now() - cached.ts <= this.PRICE_CACHE_TTL) {
+      return cached.price;
+    }
+
+    const freshPrice = await this.fetchPriceFromRest(symbol);
+    this.priceCache.set(symbol, { price: freshPrice, ts: Date.now() });
+    return freshPrice;
+  }
+
+  private normalizeSymbol(assetType: string | undefined | null): string | null {
+    if (!assetType) {
+      return null;
+    }
+
+    const normalized = assetType.replace('/', '').toUpperCase();
+    if (normalized.endsWith('USDT')) {
+      return normalized;
+    }
+    return `${normalized}USDT`;
+  }
+
+  private async fetchPriceFromRest(symbol: string): Promise<number> {
+    const url = `${this.BINANCE_REST_BASE_URL}/api/v3/ticker/price`;
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          params: { symbol },
+          timeout: 5000, // 5秒超时
+        }),
+      );
+
+      const price = Number(response.data?.price);
+      if (!Number.isFinite(price)) {
+        throw new Error('Binance API 未返回有效价格');
+      }
+      return price;
+    } catch (error) {
+      const err = error as Error;
+      this.logger.warn(`请求 Binance 价格失败 (${symbol}): ${err.message}，使用模拟价格`);
+
+      // 当Binance API不可用时，返回模拟价格
+      return this.generateMockPrice(symbol);
+    }
+  }
+
+  /**
+   * 生成模拟价格（当Binance API不可用时使用）
+   * 基于历史价格范围生成随机波动的价格
+   */
+  private generateMockPrice(symbol: string): number {
+    // 基础价格范围（根据不同币种）
+    const basePrices: Record<string, number> = {
+      'BTCUSDT': 50000,
+      'ETHUSDT': 3000,
+      'BNBUSDT': 400,
+      'SOLUSDT': 100,
+      'XRPUSDT': 0.6,
+      'ADAUSDT': 0.5,
+      'DOGEUSDT': 0.1,
+    };
+
+    const basePrice = basePrices[symbol] || 1000; // 默认价格
+
+    // 添加随机波动 (-2% 到 +2%)
+    const volatility = 0.02;
+    const randomFactor = 1 + (Math.random() * 2 - 1) * volatility;
+    const mockPrice = basePrice * randomFactor;
+
+    this.logger.log(`使用模拟价格 ${symbol}: ${mockPrice.toFixed(2)}`);
+    return mockPrice;
   }
 
   // TODO: 暂时禁用 CoinGecko API 定时任务

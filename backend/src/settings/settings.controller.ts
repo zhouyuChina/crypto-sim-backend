@@ -19,6 +19,8 @@ import {
   UpdateCustomerServiceDto,
   UpdateLatencyDto,
   UpdateShareConfigDto,
+  UpdateDepositAddressDto,
+  UpdateIpWhitelistDto,
 } from './dto/update-settings.dto';
 
 @Controller('admin/settings')
@@ -183,6 +185,52 @@ export class SettingsController {
   async updateShareConfig(@Body() dto: UpdateShareConfigDto) {
     await this.settingsService.updateShareConfig(dto);
     return { message: '分享内容设置已更新' };
+  }
+
+  /**
+   * 获取入金地址设置
+   * GET /admin/settings/deposit/address
+   */
+  @Get('deposit/address')
+  @Roles('admin')
+  async getDepositAddress() {
+    return {
+      data: await this.settingsService.getDepositAddress(),
+    };
+  }
+
+  /**
+   * 更新入金地址设置
+   * PUT /admin/settings/deposit/address
+   */
+  @Put('deposit/address')
+  @Roles('admin')
+  async updateDepositAddress(@Body() dto: UpdateDepositAddressDto) {
+    await this.settingsService.updateDepositAddress(dto);
+    return { message: '入金地址设置已更新' };
+  }
+
+  /**
+   * 获取 IP 白名单设置
+   * GET /admin/settings/ip-whitelist
+   */
+  @Get('ip-whitelist')
+  @Roles('admin')
+  async getIpWhitelist() {
+    return {
+      data: await this.settingsService.getIpWhitelist(),
+    };
+  }
+
+  /**
+   * 更新 IP 白名单设置
+   * PUT /admin/settings/ip-whitelist
+   */
+  @Put('ip-whitelist')
+  @Roles('admin')
+  async updateIpWhitelist(@Body() dto: UpdateIpWhitelistDto) {
+    await this.settingsService.updateIpWhitelist(dto);
+    return { message: 'IP 白名单设置已更新' };
   }
 
   /**

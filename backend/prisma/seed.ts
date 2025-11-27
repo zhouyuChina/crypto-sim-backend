@@ -4,29 +4,69 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com';
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe123!';
-  const adminPhone = process.env.SEED_ADMIN_PHONE ?? '+86-10000000000';
-
   const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 12);
-  const passwordHash = await bcrypt.hash(adminPassword, saltRounds);
 
-  await prisma.user.upsert({
-    where: { email: adminEmail },
+  // ==================== 创建管理员账户 (Admin 表) ====================
+  const adminUsername = process.env.SEED_ADMIN_USERNAME ?? 'admin';
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@crypto-sim.com';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'admin123';
+  const adminDisplayName = process.env.SEED_ADMIN_DISPLAY_NAME ?? '系统管理员';
+
+  const adminPasswordHash = await bcrypt.hash(adminPassword, saltRounds);
+
+  const admin = await prisma.admin.upsert({
+    where: { username: adminUsername },
     update: {
-      passwordHash,
-      roles: ['admin', 'trader'],
-      isActive: true
+      passwordHash: adminPasswordHash,
+      email: adminEmail,
+      displayName: adminDisplayName,
+      isActive: true,
+      permissions: ['*'], // 超级管理员权限
     },
     create: {
+      username: adminUsername,
       email: adminEmail,
-      displayName: 'Administrator',
-      phoneNumber: adminPhone,
-      passwordHash,
-      roles: ['admin', 'trader'],
-      isActive: true
-    }
+      displayName: adminDisplayName,
+      passwordHash: adminPasswordHash,
+      permissions: ['*'], // 超级管理员权限
+      isActive: true,
+    },
   });
+
+  console.log('✅ 管理员账户已创建/更新:');
+  console.log('   用户名:', admin.username);
+  console.log('   邮箱:', admin.email);
+  console.log('   密码:', adminPassword);
+  console.log('');
+
+  // ==================== 创建测试用户 (User 表) ====================
+  const userEmail = process.env.SEED_USER_EMAIL ?? 'test@example.com';
+  const userPassword = process.env.SEED_USER_PASSWORD ?? 'test123';
+  const userPhone = process.env.SEED_USER_PHONE ?? '+86-13800138000';
+
+  const userPasswordHash = await bcrypt.hash(userPassword, saltRounds);
+
+  const user = await prisma.user.upsert({
+    where: { email: userEmail },
+    update: {
+      passwordHash: userPasswordHash,
+      roles: ['trader'],
+      isActive: true,
+    },
+    create: {
+      email: userEmail,
+      displayName: '测试用户',
+      phoneNumber: userPhone,
+      passwordHash: userPasswordHash,
+      roles: ['trader'],
+      isActive: true,
+    },
+  });
+
+  console.log('✅ 测试用户已创建/更新:');
+  console.log('   邮箱:', user.email);
+  console.log('   密码:', userPassword);
+  console.log('');
 
   const testimonialCount = await prisma.testimonial.count();
   if (testimonialCount === 0) {
@@ -127,7 +167,22 @@ async function main() {
         }
       ]
     });
+    console.log('✅ 交易配置已创建: 3 条记录');
   }
+
+  // ==================== 数据库初始化完成 ====================
+  console.log('');
+  console.log('🎉 数据库初始化完成！');
+  console.log('');
+  console.log('📋 登录信息:');
+  console.log('   管理后台: http://localhost:3000/api/admin/auth/login');
+  console.log('   - 用户名: ' + adminUsername);
+  console.log('   - 密码: ' + adminPassword);
+  console.log('');
+  console.log('   客户端: http://localhost:3000/api/auth/login');
+  console.log('   - 邮箱: ' + userEmail);
+  console.log('   - 密码: ' + userPassword);
+  console.log('');
 }
 
 void main()

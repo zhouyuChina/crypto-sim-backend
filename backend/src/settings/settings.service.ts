@@ -18,6 +18,9 @@ import type {
   UpdateCustomerServiceDto,
   UpdateLatencyDto,
   UpdateShareConfigDto,
+  UpdateDepositAddressDto,
+  UpdateIpWhitelistDto,
+  IpWhitelistConfig,
 } from './dto/update-settings.dto';
 
 @Injectable()
@@ -156,13 +159,6 @@ export class SettingsService {
           passwordHash,
           displayName: dto.displayName || admin.displayName,
         },
-      });
-
-      // 更新设置
-      await this.updateSetting({
-        key: 'admin.username',
-        value: dto.username,
-        description: '管理员用户名',
       });
 
       this.logger.log(`管理员账号已更新: ${dto.username}`);
@@ -305,13 +301,69 @@ export class SettingsService {
       const setting = await this.getSetting('share.config');
       return setting.value;
     } catch {
+      // 返回默认值（保留 content 和 url 字段）
+      return {
+        content: '',
+        url: '',
+      };
+    }
+  }
+
+  /**
+   * 更新入金地址设置
+   */
+  async updateDepositAddress(dto: UpdateDepositAddressDto): Promise<void> {
+    await this.updateSetting({
+      key: 'deposit.address',
+      value: dto.config,
+      description: '入金地址配置',
+    });
+
+    this.logger.log('入金地址设置已更新');
+  }
+
+  /**
+   * 获取入金地址设置
+   */
+  async getDepositAddress() {
+    try {
+      const setting = await this.getSetting('deposit.address');
+      return setting.value;
+    } catch {
       // 返回默认值
       return {
-        title: '',
+        address: '',
+        qrCodeUrl: '',
+      };
+    }
+  }
+
+  /**
+   * 更新 IP 白名单设置
+   */
+  async updateIpWhitelist(dto: UpdateIpWhitelistDto): Promise<void> {
+    await this.updateSetting({
+      key: 'security.ipWhitelist',
+      value: dto.config,
+      description: 'IP 白名单配置',
+    });
+
+    this.logger.log('IP 白名单设置已更新');
+  }
+
+  /**
+   * 获取 IP 白名单设置
+   */
+  async getIpWhitelist(): Promise<IpWhitelistConfig> {
+    try {
+      const setting = await this.getSetting('security.ipWhitelist');
+      return setting.value as IpWhitelistConfig;
+    } catch {
+      // 返回默认值
+      return {
+        ips: [],
+        enabled: false,
         description: '',
-        image: '',
-        url: '',
-        hashtags: [],
       };
     }
   }

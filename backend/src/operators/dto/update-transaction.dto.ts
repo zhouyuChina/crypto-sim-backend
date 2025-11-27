@@ -52,4 +52,8 @@ export class UpdateTransactionDto {
   @IsEnum(['DEMO', 'REAL'])
   @IsOptional()
   accountType?: 'DEMO' | 'REAL';
+
+  @IsString()
+  @IsOptional()
+  subMarketCycleId?: string;
 }

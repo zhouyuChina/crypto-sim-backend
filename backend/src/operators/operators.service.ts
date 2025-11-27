@@ -35,14 +35,7 @@ export class OperatorsService {
       throw new ConflictException('该邮箱已被使用');
     }
 
-    // 检查手机号是否已存在
-    const existingPhone = await this.prisma.user.findUnique({
-      where: { phoneNumber: dto.phoneNumber },
-    });
-
-    if (existingPhone) {
-      throw new ConflictException('该手机号已被使用');
-    }
+    // 手机号不需要唯一性检查，允许多个用户使用相同手机号
 
     // 创建操作员（使用一个默认密码哈希，因为他们不需要登录）
     const defaultPasswordHash = await bcrypt.hash(`custom_${uuidv4()}`, 12);
@@ -251,15 +244,7 @@ export class OperatorsService {
       }
     }
 
-    // 如果更新手机号，检查是否冲突
-    if (dto.phoneNumber && dto.phoneNumber !== existingMember.phoneNumber) {
-      const phoneExists = await this.prisma.user.findUnique({
-        where: { phoneNumber: dto.phoneNumber },
-      });
-      if (phoneExists) {
-        throw new ConflictException('该手机号已被使用');
-      }
-    }
+    // 手机号不需要唯一性检查，允许多个用户使用相同手机号
 
     const updatedMember = await this.prisma.user.update({
       where: { id },
@@ -334,6 +319,22 @@ export class OperatorsService {
     // 生成唯一的订单号
     const orderNumber = `TX${Date.now()}${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
 
+    const accountType = dto.accountType ?? 'DEMO';
+
+    // 查找当前活跃的大盘（真实仓需要关联大盘）
+    let marketSessionId: string | null = null;
+    if (accountType === 'REAL') {
+      const activeMarketSession = await this.prisma.marketSession.findFirst({
+        where: {
+          status: 'ACTIVE',
+        },
+        orderBy: { startTime: 'desc' },
+      });
+      if (activeMarketSession) {
+        marketSessionId = activeMarketSession.id;
+      }
+    }
+
     const transaction = await this.prisma.transactionLog.create({
       data: {
         userId: memberId,
@@ -351,7 +352,8 @@ export class OperatorsService {
         returnRate: dto.returnRate,
         actualReturn: dto.actualReturn,
         status: dto.status ?? 'SETTLED',
-        accountType: dto.accountType ?? 'DEMO',
+        accountType,
+        marketSessionId, // 关联大盘
         settledAt: dto.status === 'SETTLED' ? new Date() : null,
       },
     });

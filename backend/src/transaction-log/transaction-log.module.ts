@@ -3,12 +3,18 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MarketDataModule } from '../market-data/market-data.module';
 import { SettingsModule } from '../settings/settings.module';
+import { AdminTradingModule } from '../admin-trading/admin-trading.module';
 import { TransactionLogService } from './transaction-log.service';
 import { TransactionLogController } from './transaction-log.controller';
 import { AdminTransactionLogController } from './admin-transaction-log.controller';
 
 @Module({
-  imports: [PrismaModule, MarketDataModule, SettingsModule],
+  imports: [
+    PrismaModule,
+    MarketDataModule,
+    SettingsModule,
+    AdminTradingModule,
+  ],
   controllers: [TransactionLogController, AdminTransactionLogController],
   providers: [TransactionLogService],
   exports: [TransactionLogService],

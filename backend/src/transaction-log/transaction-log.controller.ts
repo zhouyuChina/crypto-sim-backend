@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Query,
@@ -17,6 +18,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { QueryTransactionsDto } from './dto/query-transactions.dto';
 import { SettleTransactionDto } from './dto/settle-transaction.dto';
+import { UpdatePriceDto } from './dto/update-price.dto';
 import { UnifiedTransactionDto, TransactionType } from './dto/unified-transaction.dto';
 import { TransactionLogService } from './transaction-log.service';
 
@@ -119,6 +121,19 @@ export class TransactionLogController {
     @Param('orderNumber') orderNumber: string,
   ) {
     return this.transactionLogService.cancelTransaction(orderNumber, user.id);
+  }
+
+  /**
+   * 更新交易的当前价格（前端实时推送）
+   * PATCH /transactions/:orderNumber/price
+   */
+  @Public()
+  @Patch(':orderNumber/price')
+  updateCurrentPrice(
+    @Param('orderNumber') orderNumber: string,
+    @Body() dto: UpdatePriceDto,
+  ) {
+    return this.transactionLogService.updateCurrentPrice(orderNumber, dto.currentPrice);
   }
 
   /**

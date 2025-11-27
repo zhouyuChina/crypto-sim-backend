@@ -16,4 +16,8 @@ export class AdminQueryTransactionsDto extends QueryTransactionsDto {
   @Type(() => Boolean)
   @IsBoolean()
   managedMode?: boolean;  // 通过托管模式查询
+
+  @IsOptional()
+  @IsString()
+  marketSessionId?: string;  // 通过大盘 ID 查询
 }
