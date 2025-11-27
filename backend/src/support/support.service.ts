@@ -1,12 +1,17 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConversationStatus, SenderType, MessageType } from '@prisma/client';
+import { SupportGateway } from './support.gateway';
 
 @Injectable()
 export class SupportService {
   private readonly logger = new Logger(SupportService.name);
 
-  constructor(public readonly prisma: PrismaService) {}
+  constructor(
+    public readonly prisma: PrismaService,
+    @Inject(forwardRef(() => SupportGateway))
+    private readonly supportGateway: SupportGateway,
+  ) {}
 
   /**
    * 获取或创建用户的对话
@@ -126,6 +131,11 @@ export class SupportService {
     });
 
     this.logger.log(`消息已发送: ${message.id} in ${conversationId}`);
+
+    // ✅ 通过 WebSocket 实时推送消息
+    const roomName = `support:conversation:${conversationId}`;
+    this.supportGateway.server.to(roomName).emit('support:message', message);
+    this.logger.log(`消息已推送到房间: ${roomName}`);
 
     return message;
   }

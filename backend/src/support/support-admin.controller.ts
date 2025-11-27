@@ -90,7 +90,7 @@ export class SupportAdminController {
   @Post('messages')
   @Roles('admin')
   async sendMessage(@Body() dto: SendMessageDto, @CurrentUser() admin: any) {
-    // 保存消息到数据库
+    // Service 会自动保存并推送消息
     const message = await this.supportService.sendMessage(
       dto.conversationId,
       admin.id,
@@ -101,11 +101,7 @@ export class SupportAdminController {
       dto.metadata,
     );
 
-    // 通过 WebSocket 实时推送给用户
-    const roomName = `support:conversation:${dto.conversationId}`;
-    this.supportGateway.server.to(roomName).emit('support:message', message);
-
-    this.logger.log(`管理员消息已发送并推送: ${message.id}`);
+    this.logger.log(`管理员消息已发送: ${message.id}`);
 
     return message;
   }

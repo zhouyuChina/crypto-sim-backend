@@ -8,7 +8,7 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger, UseGuards, Inject, forwardRef } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { MessageType } from '@prisma/client';
 
@@ -22,10 +22,18 @@ export class SupportGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly supportService: SupportService) {}
+  constructor(
+    @Inject(forwardRef(() => SupportService))
+    private readonly supportService: SupportService,
+  ) {}
 
   handleConnection(client: Socket) {
     this.logger.debug(`客服系统客户端连接: ${client.id}`);
+
+    // 监听所有事件（调试用）
+    client.onAny((eventName, ...args) => {
+      this.logger.debug(`收到客户端事件: ${eventName}`, JSON.stringify(args));
+    });
   }
 
   handleDisconnect(client: Socket) {
@@ -45,13 +53,15 @@ export class SupportGateway implements OnGatewayConnection, OnGatewayDisconnect 
       const { conversationId, userType } = payload;
       const roomName = `support:conversation:${conversationId}`;
 
+      this.logger.log(`收到加入房间请求 - ClientID: ${client.id}, UserType: ${userType}, ConversationId: ${conversationId}`);
+
       // 加入房间
-      client.join(roomName);
+      await client.join(roomName);
 
       // 确认加入
       client.emit('support:joined', { conversationId, roomName });
 
-      this.logger.log(`${userType} 加入对话房间: ${roomName}`);
+      this.logger.log(`${userType} 成功加入对话房间: ${roomName}, ClientID: ${client.id}`);
 
       return { success: true, roomName };
     } catch (error: any) {
