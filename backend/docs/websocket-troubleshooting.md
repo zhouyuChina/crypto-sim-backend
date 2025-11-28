@@ -2,6 +2,29 @@
 
 ## 问题：客户端创建交易后，管理端前端没有收到实时推送
 
+## ⚠️ 多实例环境问题（已修复）
+
+### 问题描述
+在生产环境（多实例/负载均衡）中，消息同步可能失败，但本地单实例环境正常。
+
+### 根本原因
+- **EventEmitter 是进程内的**：`EventEmitter2` 只能在同一进程内传递事件
+- **多实例场景**：
+  - 实例 A 创建交易 → 发射 `transaction.created` 事件
+  - 但 `TransactionListener` 在实例 B 上 → 无法接收到事件
+  - 即使 WebSocket 通过 Redis adapter 支持跨实例，但事件监听器只在本地实例上
+
+### 解决方案（已实施）
+- ✅ **直接注入 Gateway**：`TransactionLogService` 现在直接注入 `AdminTradingGateway`
+- ✅ **直接调用广播方法**：不再依赖进程内事件，直接调用 `broadcastNewTransaction` 等方法
+- ✅ **WebSocket Redis Adapter**：确保生产环境启用了 Redis WebSocket adapter（已在 `main.ts` 中配置）
+- ✅ **向后兼容**：保留 EventEmitter 事件发射，供其他可能的监听器使用
+
+### 验证修复
+1. 确保生产环境启用了 Redis：`REDIS_ENABLED=true`
+2. 检查日志中是否有 "Redis WebSocket adapter enabled"
+3. 检查日志中是否有 "新交易已推送到管理端" 或 "交易状态变更已推送到管理端"
+
 ### 排查步骤
 
 #### 1. 检查后端日志
