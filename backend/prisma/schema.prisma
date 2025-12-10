@@ -453,3 +453,27 @@ enum MessageType {
   IMAGE // 图片消息
   SYSTEM // 系统消息（如：管理员加入、对话关闭等）
 }
+
+// 邮箱验证码表 - 用于邮箱验证、找回密码等场景
+model EmailVerification {
+  id        String                    @id @default(uuid())
+  email     String // 邮箱地址
+  code      String // 验证码（6位数字）
+  type      EmailVerificationType // 验证类型
+  used      Boolean                   @default(false) // 是否已使用
+  attempts  Int                       @default(0) // 验证尝试次数
+  expiresAt DateTime // 过期时间（默认10分钟）
+  createdAt DateTime                  @default(now())
+
+  @@index([email, type])
+  @@index([code])
+  @@index([expiresAt])
+}
+
+// 邮箱验证类型枚举
+enum EmailVerificationType {
+  REGISTER // 注册验证
+  RESET_PASSWORD // 重置密码
+  CHANGE_EMAIL // 修改邮箱
+  SECURITY // 安全操作验证
+}

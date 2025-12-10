@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Query,
   Param,
@@ -9,7 +10,9 @@ import {
   UploadedFile,
   BadRequestException,
   Logger,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -17,6 +20,7 @@ import { SupportService } from './support.service';
 import { SupportGateway } from './support.gateway';
 import { GetConversationsDto } from './dto/get-conversations.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { ExportConversationsDto } from './dto/export-conversations.dto';
 
 @Controller('admin/support')
 export class SupportAdminController {
@@ -175,5 +179,78 @@ export class SupportAdminController {
 
     this.logger.log(`Admin successfully fetched ${result.messages.length} messages, Total: ${result.total}`);
     return result;
+  }
+
+  /**
+   * 撤回消息（管理员）
+   * DELETE /api/admin/support/messages/:id
+   */
+  @Delete('messages/:id')
+  @Roles('admin')
+  async recallMessage(@Param('id') messageId: string, @CurrentUser() admin: any) {
+    this.logger.log(`管理员 ${admin.id} 撤回消息: ${messageId}`);
+
+    const result = await this.supportService.recallMessage(messageId, admin.id);
+
+    this.logger.log(`消息撤回成功: ${messageId}`);
+    return result;
+  }
+
+  /**
+   * 导出客服记录
+   * GET /api/admin/support/export
+   * 支持 JSON 和 CSV 格式导出
+   */
+  @Get('export')
+  @Roles('admin')
+  async exportConversations(@Query() dto: ExportConversationsDto, @Res() res: Response) {
+    this.logger.log(`导出客服记录 - 格式: ${dto.format || 'json'}, 过滤条件:`, {
+      status: dto.status,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      userId: dto.userId,
+      adminId: dto.adminId,
+    });
+
+    const format = dto.format || 'json';
+    const filters = {
+      status: dto.status,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      userId: dto.userId,
+      adminId: dto.adminId,
+    };
+
+    if (format === 'csv') {
+      const csvContent = await this.supportService.exportConversationsAsCSV(filters);
+      const filename = `support_conversations_${new Date().toISOString().split('T')[0]}.csv`;
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      // 添加 UTF-8 BOM，确保 Excel 正确识别中文
+      res.send('\uFEFF' + csvContent);
+
+      this.logger.log(`CSV 导出完成: ${filename}`);
+    } else {
+      // JSON 格式
+      const conversations = await this.supportService.exportConversations(filters);
+      const filename = `support_conversations_${new Date().toISOString().split('T')[0]}.json`;
+
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        totalConversations: conversations.length,
+        totalMessages: conversations.reduce((sum, conv) => sum + conv.messages.length, 0),
+        filters,
+        conversations,
+      };
+
+      res.json(exportData);
+
+      this.logger.log(`JSON 导出完成: ${filename}, 共 ${conversations.length} 个对话`);
+    }
   }
 }

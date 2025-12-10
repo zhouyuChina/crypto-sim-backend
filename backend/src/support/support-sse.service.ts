@@ -147,6 +147,41 @@ export class SupportSseService {
   }
 
   /**
+   * 推送消息撤回通知
+   */
+  pushMessageRecalled(conversationId: string, messageId: string) {
+    const subscribers = this.conversationStreams.get(conversationId);
+
+    if (!subscribers || subscribers.size === 0) {
+      this.logger.debug(`对话 ${conversationId} 没有订阅者，跳过撤回通知`);
+      return;
+    }
+
+    const event: MessageEvent = {
+      data: {
+        type: 'message-recalled',
+        conversationId,
+        messageId,
+        recalledAt: new Date(),
+      },
+    };
+
+    let successCount = 0;
+    subscribers.forEach((subject) => {
+      try {
+        subject.next(event);
+        successCount++;
+      } catch (error) {
+        this.logger.error(`推送撤回通知失败:`, error);
+      }
+    });
+
+    this.logger.log(
+      `撤回通知已推送到对话 ${conversationId}, 成功推送: ${successCount}/${subscribers.size}`,
+    );
+  }
+
+  /**
    * 获取订阅统计信息
    */
   getStats() {

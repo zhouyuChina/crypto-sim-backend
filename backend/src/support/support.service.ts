@@ -401,4 +401,206 @@ export class SupportService {
       hasMore: offset + limit < total,
     };
   }
+
+  /**
+   * 管理员：撤回消息（直接删除）
+   */
+  async recallMessage(messageId: string, adminId: string) {
+    // 1. 查找消息
+    const message = await this.prisma.chatMessage.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      throw new NotFoundException('消息不存在');
+    }
+
+    // 2. 验证权限：只能撤回管理员自己发送的消息
+    if (message.senderType !== 'ADMIN') {
+      throw new ForbiddenException('只能撤回管理员消息');
+    }
+
+    if (message.senderId !== adminId) {
+      throw new ForbiddenException('只能撤回自己发送的消息');
+    }
+
+    // 3. 删除消息
+    await this.prisma.chatMessage.delete({
+      where: { id: messageId },
+    });
+
+    this.logger.log(`管理员 ${adminId} 撤回了消息 ${messageId}`);
+
+    // 4. 推送撤回事件到 WebSocket
+    const roomName = `support:conversation:${message.conversationId}`;
+    this.supportGateway.server.to(roomName).emit('support:message_recalled', {
+      messageId,
+      conversationId: message.conversationId,
+    });
+    this.logger.log(`消息撤回事件已推送到 WebSocket 房间: ${roomName}`);
+
+    // 5. 推送撤回事件到 SSE
+    this.sseService.pushMessageRecalled(message.conversationId, messageId);
+    this.logger.log(`消息撤回事件已推送到 SSE: ${message.conversationId}`);
+
+    return {
+      success: true,
+      message: '消息已撤回',
+      messageId,
+    };
+  }
+
+  /**
+   * 管理员：导出客服记录
+   */
+  async exportConversations(filters: {
+    status?: ConversationStatus;
+    startDate?: string;
+    endDate?: string;
+    userId?: string;
+    adminId?: string;
+  }) {
+    const where: any = {};
+
+    // 状态过滤
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    // 日期范围过滤
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = new Date(filters.endDate);
+      }
+    }
+
+    // 用户过滤
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
+
+    // 管理员过滤
+    if (filters.adminId) {
+      where.adminId = filters.adminId;
+    }
+
+    // 查询对话及其消息
+    const conversations = await this.prisma.chatConversation.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+            phoneNumber: true,
+          },
+        },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    this.logger.log(`导出了 ${conversations.length} 个对话记录`);
+
+    return conversations;
+  }
+
+  /**
+   * 管理员：导出客服记录为 CSV 格式
+   * 每条消息作为单独的行导出
+   */
+  async exportConversationsAsCSV(filters: {
+    status?: ConversationStatus;
+    startDate?: string;
+    endDate?: string;
+    userId?: string;
+    adminId?: string;
+  }): Promise<string> {
+    const conversations = await this.exportConversations(filters);
+
+    // CSV 头部
+    const headers = [
+      '对话ID',
+      '用户ID',
+      '用户邮箱',
+      '用户名称',
+      '管理员ID',
+      '管理员名称',
+      '对话状态',
+      '对话创建时间',
+      '消息ID',
+      '消息发送者类型',
+      '消息发送者ID',
+      '消息发送者名称',
+      '消息类型',
+      '消息内容',
+      '消息时间',
+      '是否已读',
+    ];
+
+    // CSV 行：将每条消息展开为单独的行
+    const rows: any[] = [];
+    conversations.forEach((conv) => {
+      if (conv.messages.length === 0) {
+        // 如果没有消息，至少导出对话信息
+        rows.push([
+          conv.id,
+          conv.userId,
+          conv.user.email || '',
+          conv.user.displayName || '',
+          conv.adminId || '',
+          conv.adminName || '',
+          conv.status,
+          conv.createdAt.toISOString(),
+          '',
+          '',
+          '',
+          '',
+          '',
+          '(无消息)',
+          '',
+          '',
+        ]);
+      } else {
+        // 每条消息一行
+        conv.messages.forEach((msg) => {
+          rows.push([
+            conv.id,
+            conv.userId,
+            conv.user.email || '',
+            conv.user.displayName || '',
+            conv.adminId || '',
+            conv.adminName || '',
+            conv.status,
+            conv.createdAt.toISOString(),
+            msg.id,
+            msg.senderType,
+            msg.senderId,
+            msg.senderName,
+            msg.messageType,
+            msg.content,
+            msg.createdAt.toISOString(),
+            msg.isRead ? '是' : '否',
+          ]);
+        });
+      }
+    });
+
+    // 生成 CSV
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) =>
+        row.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(','),
+      ),
+    ].join('\n');
+
+    return csvContent;
+  }
 }

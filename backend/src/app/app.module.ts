@@ -1,39 +1,42 @@
+import { BullModule } from '@nestjs/bullmq';
 import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TerminusModule } from '@nestjs/terminus';
-import { BullModule } from '@nestjs/bullmq';
-import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { redisStore } from 'cache-manager-ioredis-yet';
+import { LoggerModule } from 'nestjs-pino';
 
+import { AdminAuthModule } from '../admin-auth/admin-auth.module';
+import { AdminTradingModule } from '../admin-trading/admin-trading.module';
+import { AuthModule } from '../auth/auth.module';
+import { CmsModule } from '../cms/cms.module';
+import { PublicCmsModule } from '../cms/public/public-cms.module';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import configuration from '../config/configuration';
 import validateEnv from '../config/validate-env';
+import { EmailModule } from '../email/email.module';
+import { MailModule } from '../mail/mail.module';
+import { MarketDataModule } from '../market-data/market-data.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
 import { QueueModule } from '../queue/queue.module';
 import { RealtimeModule } from '../realtime/realtime.module';
-import { AuthModule } from '../auth/auth.module';
-import { AdminAuthModule } from '../admin-auth/admin-auth.module';
-import { UsersModule } from '../users/users.module';
-import { MarketDataModule } from '../market-data/market-data.module';
-import { MailModule } from '../mail/mail.module';
 import { TransactionLogModule } from '../transaction-log/transaction-log.module';
+import { UsersModule } from '../users/users.module';
 import { SettingsModule } from '../settings/settings.module';
-import { CmsModule } from '../cms/cms.module';
-import { PublicCmsModule } from '../cms/public/public-cms.module';
 import { OperatorsModule } from '../operators/operators.module';
 import { TradingManagementModule } from '../trading-management/trading-management.module';
 import { SupportModule } from '../support/support.module';
 import { MarketSessionModule } from '../market-session/market-session.module';
-import { AdminTradingModule } from '../admin-trading/admin-trading.module';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
+
 
 @Module({
   imports: [
@@ -130,7 +133,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
     TradingManagementModule,
     SupportModule,
     MarketSessionModule,
-    AdminTradingModule
+    AdminTradingModule,
+    EmailModule
   ],
   controllers: [AppController],
   providers: [

@@ -9,7 +9,13 @@
       "Bash(timeout 30 npm run start:dev:*)",
       "Bash(npm run build:*)",
       "Bash(lsof:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(ls:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npx prisma migrate:*)"
     ],
     "deny": [],
     "ask": []
