@@ -66,6 +66,7 @@ export class TransactionLogService {
     const balance = accountType === AccountType.DEMO
       ? Number(user.demoBalance)
       : Number(user.realBalance);
+    const entryAccountBalance = balance;
 
     if (balance < dto.investAmount) {
       throw new BadRequestException(
@@ -136,6 +137,7 @@ export class TransactionLogService {
         currentPrice: entryPrice,
         spread,
         investAmount: dto.investAmount,
+        entryAccountBalance,
         returnRate: dto.returnRate,
         actualReturn: 0, // 初始为 0，结算时计算
         status: TransactionStatus.PENDING,
@@ -489,7 +491,7 @@ export class TransactionLogService {
       },
     });
 
-    await this.updateUserAccountAfterSettle(
+    const settledAccountBalance = await this.updateUserAccountAfterSettle(
       transaction.userId,
       investAmount,
       actualReturn,
@@ -500,6 +502,14 @@ export class TransactionLogService {
         previousActualReturn: Number(transaction.actualReturn ?? 0),
       },
     );
+
+    if (settledAccountBalance !== null) {
+      await this.prisma.transactionLog.update({
+        where: { id: updatedTransaction.id },
+        data: { settledAccountBalance: new Prisma.Decimal(settledAccountBalance) },
+      });
+      (updatedTransaction as any).settledAccountBalance = new Prisma.Decimal(settledAccountBalance);
+    }
 
     this.logger.log(
       `交易已结算: ${orderNumber}, 账户类型: ${transaction.accountType}, 结果: ${
@@ -750,7 +760,12 @@ export class TransactionLogService {
     }
 
     // 创建交易记录
-    const transaction = await this.prisma.transactionLog.create({
+    const entryAccountBalance =
+      accountType === AccountType.DEMO
+        ? Number(user.demoBalance)
+        : Number(user.realBalance);
+
+    let transaction = await this.prisma.transactionLog.create({
       data: {
         userId: dto.userId,
         userName: user.displayName,
@@ -766,6 +781,7 @@ export class TransactionLogService {
         exitPrice,
         spread,
         investAmount: dto.investAmount,
+        entryAccountBalance,
         returnRate: dto.returnRate,
         actualReturn,
         status: shouldAutoSettle ? TransactionStatus.SETTLED : status,
@@ -810,7 +826,7 @@ export class TransactionLogService {
 
     // 如果是已结算状态，更新用户账户
     if (status === TransactionStatus.SETTLED || shouldAutoSettle) {
-      await this.updateUserAccountAfterSettle(
+      const settledAccountBalance = await this.updateUserAccountAfterSettle(
         dto.userId,
         dto.investAmount,
         actualReturn,
@@ -818,6 +834,16 @@ export class TransactionLogService {
         accountType,
         { wasSettled: false, previousActualReturn: 0 },
       );
+      if (settledAccountBalance !== null) {
+        await this.prisma.transactionLog.update({
+          where: { id: transaction.id },
+          data: { settledAccountBalance: new Prisma.Decimal(settledAccountBalance) },
+        });
+        transaction = {
+          ...transaction,
+          settledAccountBalance: new Prisma.Decimal(settledAccountBalance),
+        };
+      }
     }
 
     this.logger.log(
@@ -906,12 +932,12 @@ export class TransactionLogService {
     _isWin: boolean,
     accountType: AccountType = AccountType.DEMO,
     options?: { wasSettled?: boolean; previousActualReturn?: number },
-  ): Promise<void> {
+  ): Promise<number | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
-    if (!user) return;
+    if (!user) return null;
 
     const wasSettled = options?.wasSettled ?? false;
     const previousActualReturn = options?.previousActualReturn ?? 0;
@@ -972,6 +998,7 @@ export class TransactionLogService {
       where: { id: userId },
       data: updateData,
     });
+    return newBalance;
   }
 
   /**
@@ -994,8 +1021,16 @@ export class TransactionLogService {
       exitPrice: transaction.exitPrice ? Number(transaction.exitPrice) : null,
       spread: Number(transaction.spread),
       investAmount: Number(transaction.investAmount),
+      entryAccountBalance:
+        transaction.entryAccountBalance !== null && transaction.entryAccountBalance !== undefined
+          ? Number(transaction.entryAccountBalance)
+          : null,
       returnRate: Number(transaction.returnRate),
       actualReturn: Number(transaction.actualReturn),
+      settledAccountBalance:
+        transaction.settledAccountBalance !== null && transaction.settledAccountBalance !== undefined
+          ? Number(transaction.settledAccountBalance)
+          : null,
       status: transaction.status,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,

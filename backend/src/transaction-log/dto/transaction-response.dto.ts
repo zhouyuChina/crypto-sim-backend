@@ -16,8 +16,10 @@ export class TransactionResponseDto {
   exitPrice!: number | null;
   spread!: number;
   investAmount!: number;
+  entryAccountBalance!: number | null;
   returnRate!: number;
   actualReturn!: number;
+  settledAccountBalance!: number | null;
   status!: TransactionStatus;
   createdAt!: Date;
   updatedAt!: Date;

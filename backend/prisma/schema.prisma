@@ -137,8 +137,10 @@ model TransactionLog {
   exitPrice        Decimal?          @db.Decimal(18, 8)
   spread           Decimal           @db.Decimal(18, 8)
   investAmount     Decimal           @db.Decimal(18, 8)
+  entryAccountBalance Decimal?       @db.Decimal(18, 8)
   returnRate       Decimal           @db.Decimal(7, 4)
   actualReturn     Decimal           @db.Decimal(18, 8)
+  settledAccountBalance Decimal?     @db.Decimal(18, 8)
   status           TransactionStatus @default(PENDING)
   manualAdjusted   Boolean           @default(false) // 是否被后台人工干预
   manualAdjustedById   String?
