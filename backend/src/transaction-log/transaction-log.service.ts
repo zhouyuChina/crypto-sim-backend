@@ -491,7 +491,8 @@ export class TransactionLogService {
       },
     });
 
-    const settledAccountBalance = await this.updateUserAccountAfterSettle(
+    // 更新用户账户余额
+    await this.updateUserAccountAfterSettle(
       transaction.userId,
       investAmount,
       actualReturn,
@@ -503,7 +504,9 @@ export class TransactionLogService {
       },
     );
 
-    if (settledAccountBalance !== null) {
+    // 直接计算结算后余额: 开仓余额 + 实际收益
+    if (transaction.entryAccountBalance !== null) {
+      const settledAccountBalance = Number(transaction.entryAccountBalance) + actualReturn;
       await this.prisma.transactionLog.update({
         where: { id: updatedTransaction.id },
         data: { settledAccountBalance: new Prisma.Decimal(settledAccountBalance) },
@@ -826,7 +829,8 @@ export class TransactionLogService {
 
     // 如果是已结算状态，更新用户账户
     if (status === TransactionStatus.SETTLED || shouldAutoSettle) {
-      const settledAccountBalance = await this.updateUserAccountAfterSettle(
+      // 更新用户账户余额
+      await this.updateUserAccountAfterSettle(
         dto.userId,
         dto.investAmount,
         actualReturn,
@@ -834,16 +838,17 @@ export class TransactionLogService {
         accountType,
         { wasSettled: false, previousActualReturn: 0 },
       );
-      if (settledAccountBalance !== null) {
-        await this.prisma.transactionLog.update({
-          where: { id: transaction.id },
-          data: { settledAccountBalance: new Prisma.Decimal(settledAccountBalance) },
-        });
-        transaction = {
-          ...transaction,
-          settledAccountBalance: new Prisma.Decimal(settledAccountBalance),
-        };
-      }
+
+      // 直接计算结算后余额: 开仓余额 + 实际收益
+      const settledAccountBalance = entryAccountBalance + actualReturn;
+      await this.prisma.transactionLog.update({
+        where: { id: transaction.id },
+        data: { settledAccountBalance: new Prisma.Decimal(settledAccountBalance) },
+      });
+      transaction = {
+        ...transaction,
+        settledAccountBalance: new Prisma.Decimal(settledAccountBalance),
+      };
     }
 
     this.logger.log(
@@ -932,12 +937,12 @@ export class TransactionLogService {
     _isWin: boolean,
     accountType: AccountType = AccountType.DEMO,
     options?: { wasSettled?: boolean; previousActualReturn?: number },
-  ): Promise<number | null> {
+  ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
-    if (!user) return null;
+    if (!user) return;
 
     const wasSettled = options?.wasSettled ?? false;
     const previousActualReturn = options?.previousActualReturn ?? 0;
@@ -998,7 +1003,6 @@ export class TransactionLogService {
       where: { id: userId },
       data: updateData,
     });
-    return newBalance;
   }
 
   /**

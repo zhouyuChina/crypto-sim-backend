@@ -18,7 +18,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"
+    "prisma:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
+    "check-settled-balance": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/check-settled-balance-errors.ts",
+    "fix-settled-balance": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/fix-settled-balance-errors.ts"
   },
   "dependencies": {
     "@bull-board/api": "^5.22.0",

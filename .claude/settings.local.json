@@ -93,7 +93,9 @@
       "Bash(/tmp/force_settle.sh)",
       "Bash(/tmp/manual_settle_all.sh)",
       "Bash(/tmp/test_update_price.sh)",
-      "Bash(/tmp/test_complete_flow.sh)"
+      "Bash(/tmp/test_complete_flow.sh)",
+      "Bash(git commit:*)",
+      "Bash(npm run check-settled-balance:*)"
     ],
     "deny": [],
     "ask": []
