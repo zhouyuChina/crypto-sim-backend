@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app/app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -61,6 +62,16 @@ async function bootstrap(): Promise<void> {
   } else {
     logger.log('Redis disabled, using default WebSocket adapter');
   }
+
+  // Swagger
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Crypto Sim API')
+    .setDescription('Crypto Sim 后端接口文档')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('swagger', app, document);
 
   const port = configService.get<number>('http.port', 3000);
   const host = configService.get<string>('http.host', '0.0.0.0');
