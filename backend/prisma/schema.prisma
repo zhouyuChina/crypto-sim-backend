@@ -56,6 +56,8 @@ model User {
   sessions           Session[]
   transactionLogs    TransactionLog[]
   chatConversations  ChatConversation[]
+  fundingRecords     FundingRecord[]
+  balanceLedgers     BalanceLedger[]
 
   @@index([email])
   @@index([isCustomMember])
@@ -223,6 +225,68 @@ model TradingPerformance {
   @@index([tradeDuration])
 }
 
+// 出入金记录表
+model FundingRecord {
+  id                String         @id @default(uuid())
+  userId            String
+  type              FundingType
+  status            FundingStatus  @default(PENDING)
+  amount            Decimal        @db.Decimal(18, 8)
+  network           FundingNetwork @default(TRC20)
+  txHash            String?
+  toAddress         String?
+  remark            String?        @db.Text
+  reviewNote        String?        @db.Text
+  reviewedAt        DateTime?
+  reviewedBy        String?
+  balanceApplied    Boolean        @default(false)
+  beforeRealBalance Decimal?       @db.Decimal(18, 8)
+  afterRealBalance  Decimal?       @db.Decimal(18, 8)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([network, txHash])
+  @@index([userId, createdAt])
+  @@index([type, status, createdAt])
+  @@index([status, createdAt])
+}
+
+// 真实余额流水表
+model BalanceLedger {
+  id            String      @id @default(uuid())
+  userId        String
+  accountType   AccountType @default(REAL)
+  delta         Decimal     @db.Decimal(18, 8)
+  beforeBalance Decimal     @db.Decimal(18, 8)
+  afterBalance  Decimal     @db.Decimal(18, 8)
+  referenceId   String
+  referenceType String
+  operatorId    String?
+  createdAt     DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([referenceId, referenceType])
+}
+
+// CMS 公共法务文案表
+model PublicLegalContent {
+  id               String   @id @default(uuid())
+  locale           String   @unique
+  homeAntiScam     Json
+  tutorialSectionE Json
+  version          Int      @default(1)
+  isPublished      Boolean  @default(false)
+  publishedAt      DateTime?
+  createdBy        String?
+  updatedBy        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([locale, isPublished])
+}
+
 enum OrderSide {
   BUY
   SELL
@@ -269,6 +333,21 @@ enum LeaderboardType {
   DAILY
   WEEKLY
   MONTHLY
+}
+
+enum FundingType {
+  DEPOSIT
+  WITHDRAW
+}
+
+enum FundingStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum FundingNetwork {
+  TRC20
 }
 
 // 系统设置表
