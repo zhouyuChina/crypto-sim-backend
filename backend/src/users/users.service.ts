@@ -1,20 +1,91 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryUsersDto } from './dto/query-users.dto';
 import { PaginatedUsersResponseDto, UserResponseDto } from './dto/user-response.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 import { AdjustBalanceDto, BalanceType, AdjustmentType } from './dto/adjust-balance.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import * as bcrypt from 'bcrypt';
+
+import { BusinessException } from '../common/exceptions/business.exception';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
   private readonly saltRounds = 12;
+  private readonly supportedVerificationStatuses = ['PENDING', 'IN_REVIEW', 'VERIFIED', 'REJECTED'];
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async createCustomUser(createUserDto: CreateUserDto, createdBy: string): Promise<UserResponseDto> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: createUserDto.email },
+    });
+
+    if (existingUser) {
+      throw new BusinessException(
+        HttpStatus.CONFLICT,
+        'EMAIL_ALREADY_EXISTS',
+        '该邮箱已被注册'
+      );
+    }
+
+    if (!this.supportedVerificationStatuses.includes(createUserDto.verificationStatus)) {
+      throw new BusinessException(
+        HttpStatus.BAD_REQUEST,
+        'INVALID_VERIFICATION_STATUS',
+        '不支持的实名认证状态'
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(createUserDto.password, this.saltRounds);
+
+    const createdUser = await this.prisma.user.create({
+      data: {
+        email: createUserDto.email,
+        passwordHash,
+        displayName: createUserDto.displayName,
+        phoneNumber: createUserDto.phoneNumber,
+        avatar: createUserDto.avatar,
+        idCardFront: createUserDto.idCardFront,
+        idCardBack: createUserDto.idCardBack,
+        demoBalance: new Decimal(createUserDto.demoBalance),
+        realBalance: new Decimal(createUserDto.realBalance),
+        verificationStatus: createUserDto.verificationStatus as any,
+        roles: ['trader'],
+        isCustomMember: true,
+        createdBy,
+      },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        phoneNumber: true,
+        avatar: true,
+        idCardFront: true,
+        idCardBack: true,
+        roles: true,
+        isActive: true,
+        verificationStatus: true,
+        lastLoginAt: true,
+        lastLoginIp: true,
+        createdAt: true,
+        updatedAt: true,
+        demoBalance: true,
+        realBalance: true,
+        totalProfitLoss: true,
+        totalTrades: true,
+        winRate: true,
+      },
+    });
+
+    this.logger.log(`管理员创建自定义用户: userId=${createdUser.id}, adminId=${createdBy}`);
+
+    return new UserResponseDto(createdUser);
+  }
 
   async findAll(query: QueryUsersDto): Promise<PaginatedUsersResponseDto> {
     const {

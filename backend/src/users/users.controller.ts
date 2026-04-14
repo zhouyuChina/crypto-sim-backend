@@ -1,4 +1,7 @@
-import { Controller, Get, Put, Delete, Patch, Query, Param, Body } from '@nestjs/common';
+import { Controller, Get, Put, Delete, Patch, Query, Param, Body, Post } from '@nestjs/common';
+
+import type { UserEntity } from '../auth/entities/user.entity';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
 import { QueryUsersDto } from './dto/query-users.dto';
 import { PaginatedUsersResponseDto, UserResponseDto } from './dto/user-response.dto';
@@ -6,11 +9,21 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 import { AdjustBalanceDto } from './dto/adjust-balance.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('admin/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Post()
+  @Roles('admin')
+  async create(
+    @Body() createUserDto: CreateUserDto,
+    @CurrentUser() admin: UserEntity,
+  ): Promise<UserResponseDto> {
+    return this.usersService.createCustomUser(createUserDto, admin.id);
+  }
 
   @Get()
   @Roles('admin')
