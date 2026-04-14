@@ -33,6 +33,7 @@ import { OperatorsModule } from '../operators/operators.module';
 import { TradingManagementModule } from '../trading-management/trading-management.module';
 import { SupportModule } from '../support/support.module';
 import { MarketSessionModule } from '../market-session/market-session.module';
+import { FundingModule } from '../funding/funding.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -134,7 +135,8 @@ import { AppService } from './app.service';
     SupportModule,
     MarketSessionModule,
     AdminTradingModule,
-    EmailModule
+    EmailModule,
+    FundingModule
   ],
   controllers: [AppController],
   providers: [
