@@ -8,14 +8,23 @@ import { PublicTestimonialsController } from './public-testimonials.controller';
 import { PublicCarouselsController } from './public-carousels.controller';
 import { PublicLeaderboardController } from './public-leaderboard.controller';
 import { PublicTradingPerformanceController } from './public-trading-performance.controller';
+import { PublicLegalModule } from '../public-legal/public-legal.module';
+import { PublicPublicLegalController } from './public-legal.controller';
 
 @Module({
-  imports: [TestimonialsModule, CarouselsModule, LeaderboardModule, TradingPerformanceModule],
+  imports: [
+    TestimonialsModule,
+    CarouselsModule,
+    LeaderboardModule,
+    TradingPerformanceModule,
+    PublicLegalModule
+  ],
   controllers: [
     PublicTestimonialsController,
     PublicCarouselsController,
     PublicLeaderboardController,
-    PublicTradingPerformanceController
+    PublicTradingPerformanceController,
+    PublicPublicLegalController
   ]
 })
 export class PublicCmsModule {}
