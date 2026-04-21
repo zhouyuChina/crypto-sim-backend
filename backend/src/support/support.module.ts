@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 
 import { PrismaModule } from '../prisma/prisma.module';
 import { RealtimeModule } from '../realtime/realtime.module';
@@ -18,7 +18,7 @@ import { SupportSseService } from './support-sse.service';
     RealtimeModule,
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads/support-images',
+        destination: join(__dirname, '..', '..', 'uploads', 'support-images'),
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)

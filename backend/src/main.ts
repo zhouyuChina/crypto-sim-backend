@@ -19,8 +19,8 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
   const configService = app.get(ConfigService);
 
-  // Serve static files
-  app.useStaticAssets(join(__dirname, '..', '..', 'uploads'), {
+  // Serve static files — __dirname is backend/dist after build, so one level up = backend/
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
   });
 
