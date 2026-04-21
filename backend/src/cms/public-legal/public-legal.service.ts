@@ -44,10 +44,10 @@ export class PublicLegalService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findPublishedByLocale(locale: string): Promise<PublicLegalContentResponseDto> {
-    this.ensureValidLocale(locale);
+    const localeKey = this.normalizeLocale(locale ?? 'zh-TW');
 
     const record = await this.prisma.publicLegalContent.findUnique({
-      where: { locale }
+      where: { locale: localeKey }
     });
 
     if (!record || !record.isPublished) {
@@ -70,10 +70,10 @@ export class PublicLegalService {
   }
 
   async findOne(locale: string): Promise<PublicLegalContentResponseDto> {
-    this.ensureValidLocale(locale);
+    const localeKey = this.normalizeLocale(locale);
 
     const record = await this.prisma.publicLegalContent.findUnique({
-      where: { locale }
+      where: { locale: localeKey }
     });
 
     if (!record) {
@@ -92,11 +92,11 @@ export class PublicLegalService {
     dto: UpsertPublicLegalContentDto,
     adminId: string
   ): Promise<PublicLegalContentResponseDto> {
-    this.ensureValidLocale(locale);
+    const localeKey = this.normalizeLocale(locale);
     this.validateContent(dto);
 
     const existingRecord = await this.prisma.publicLegalContent.findUnique({
-      where: { locale }
+      where: { locale: localeKey }
     });
 
     if (existingRecord) {
@@ -104,7 +104,7 @@ export class PublicLegalService {
 
       const now = new Date();
       const updatedRecord = await this.prisma.publicLegalContent.update({
-        where: { locale },
+        where: { locale: localeKey },
         data: {
           homeAntiScam: this.toJsonObject(dto.homeAntiScam),
           tutorialSectionE: this.toJsonObject(dto.tutorialSectionE),
@@ -115,7 +115,7 @@ export class PublicLegalService {
         }
       });
 
-      this.logger.log(`Public legal content updated and published: locale=${locale}, adminId=${adminId}`);
+      this.logger.log(`Public legal content updated and published: locale=${localeKey}, adminId=${adminId}`);
 
       return new PublicLegalContentResponseDto(updatedRecord);
     }
@@ -131,7 +131,7 @@ export class PublicLegalService {
     const now = new Date();
     const createdRecord = await this.prisma.publicLegalContent.create({
       data: {
-        locale,
+        locale: localeKey,
         homeAntiScam: this.toJsonObject(dto.homeAntiScam),
         tutorialSectionE: this.toJsonObject(dto.tutorialSectionE),
         version: 1,
@@ -142,7 +142,7 @@ export class PublicLegalService {
       }
     });
 
-    this.logger.log(`Public legal content created and published: locale=${locale}, adminId=${adminId}`);
+    this.logger.log(`Public legal content created and published: locale=${localeKey}, adminId=${adminId}`);
 
     return new PublicLegalContentResponseDto(createdRecord);
   }
@@ -152,10 +152,10 @@ export class PublicLegalService {
     dto: PatchPublicLegalContentDto,
     adminId: string
   ): Promise<PublicLegalContentResponseDto> {
-    this.ensureValidLocale(locale);
+    const localeKey = this.normalizeLocale(locale);
 
     const existingRecord = await this.prisma.publicLegalContent.findUnique({
-      where: { locale }
+      where: { locale: localeKey }
     });
 
     if (!existingRecord) {
@@ -171,26 +171,29 @@ export class PublicLegalService {
     const mergedContent = this.mergeContent(existingRecord, dto);
     this.validateContent(mergedContent);
 
+    const now = new Date();
     const updatedRecord = await this.prisma.publicLegalContent.update({
-      where: { locale },
+      where: { locale: localeKey },
       data: {
         homeAntiScam: this.toJsonObject(mergedContent.homeAntiScam),
         tutorialSectionE: this.toJsonObject(mergedContent.tutorialSectionE),
         version: existingRecord.version + 1,
-        updatedBy: adminId
+        updatedBy: adminId,
+        isPublished: true,
+        publishedAt: now
       }
     });
 
-    this.logger.log(`Public legal content patched: locale=${locale}, adminId=${adminId}`);
+    this.logger.log(`Public legal content patched and published: locale=${localeKey}, adminId=${adminId}`);
 
     return new PublicLegalContentResponseDto(updatedRecord);
   }
 
   async remove(locale: string): Promise<{ message: string }> {
-    this.ensureValidLocale(locale);
+    const localeKey = this.normalizeLocale(locale);
 
     const record = await this.prisma.publicLegalContent.findUnique({
-      where: { locale }
+      where: { locale: localeKey }
     });
 
     if (!record) {
@@ -202,13 +205,13 @@ export class PublicLegalService {
     }
 
     await this.prisma.publicLegalContent.delete({
-      where: { locale }
+      where: { locale: localeKey }
     });
 
-    this.logger.log(`Public legal content deleted: locale=${locale}`);
+    this.logger.log(`Public legal content deleted: locale=${localeKey}`);
 
     return {
-      message: `法务文案 ${locale} 已删除`
+      message: `法务文案 ${localeKey} 已删除`
     };
   }
 
@@ -217,10 +220,10 @@ export class PublicLegalService {
     dto: PublishPublicLegalContentDto,
     adminId: string
   ): Promise<PublicLegalContentResponseDto> {
-    this.ensureValidLocale(locale);
+    const localeKey = this.normalizeLocale(locale);
 
     const existingRecord = await this.prisma.publicLegalContent.findUnique({
-      where: { locale }
+      where: { locale: localeKey }
     });
 
     if (!existingRecord) {
@@ -234,7 +237,7 @@ export class PublicLegalService {
     this.ensureVersionMatches(existingRecord.version, dto.version);
 
     const publishedRecord = await this.prisma.publicLegalContent.update({
-      where: { locale },
+      where: { locale: localeKey },
       data: {
         isPublished: true,
         publishedAt: new Date(),
@@ -243,15 +246,18 @@ export class PublicLegalService {
       }
     });
 
-    this.logger.log(`Public legal content published: locale=${locale}, adminId=${adminId}`);
+    this.logger.log(`Public legal content published: locale=${localeKey}, adminId=${adminId}`);
 
     return new PublicLegalContentResponseDto(publishedRecord);
   }
 
-  private ensureValidLocale(locale: string): void {
-    if (!this.supportedLocales.includes(locale)) {
+  /** 返回 trim 后的合法 locale，供查询键与路由一致 */
+  private normalizeLocale(locale: string): string {
+    const key = locale.trim();
+    if (!this.supportedLocales.includes(key)) {
       throw new BusinessException(HttpStatus.BAD_REQUEST, 'INVALID_LOCALE', '不支持的语系');
     }
+    return key;
   }
 
   private ensureVersionMatches(currentVersion: number, incomingVersion: number): void {
