@@ -55,11 +55,9 @@ export class FundingService {
   async createDeposit(userId: string, dto: CreateDepositDto): Promise<FundingRecordResponseDto> {
     this.ensureValidAmount(dto.amount);
     this.ensureSupportedNetwork(dto.network);
-    this.ensureTrc20Address(dto.toAddress);
 
     const txHash = this.normalizeTxHash(dto.txHash);
     const remark = this.normalizeOptionalText(dto.remark);
-    const toAddress = dto.toAddress.trim();
 
     const existingRecord = await this.prisma.fundingRecord.findFirst({
       where: {
@@ -81,7 +79,6 @@ export class FundingService {
           amount: new Prisma.Decimal(dto.amount),
           network: FundingNetwork.TRC20,
           txHash,
-          toAddress,
           remark
         }
       });
@@ -406,7 +403,7 @@ export class FundingService {
 
   private ensureTrc20Address(address: string): void {
     if (!this.trx20AddressPattern.test(address.trim())) {
-      throw new BusinessException(HttpStatus.BAD_REQUEST, 'INVALID_ADDRESS', '提领地址格式错误');
+      throw new BusinessException(HttpStatus.BAD_REQUEST, 'INVALID_ADDRESS', '充值地址格式错误');
     }
   }
 
