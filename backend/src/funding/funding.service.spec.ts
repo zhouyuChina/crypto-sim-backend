@@ -48,6 +48,7 @@ describe('FundingService', () => {
       service.createDeposit('user-1', {
         amount: 100.5,
         network: 'TRC20',
+        toAddress: 'TQx9LqS3K4qB4Jxj2m5v7u9n1p3r5t7y9z',
         txHash: 'duplicate-hash',
         remark: 'manual submit'
       })

@@ -55,9 +55,11 @@ export class FundingService {
   async createDeposit(userId: string, dto: CreateDepositDto): Promise<FundingRecordResponseDto> {
     this.ensureValidAmount(dto.amount);
     this.ensureSupportedNetwork(dto.network);
+    this.ensureTrc20Address(dto.toAddress);
 
     const txHash = this.normalizeTxHash(dto.txHash);
     const remark = this.normalizeOptionalText(dto.remark);
+    const toAddress = dto.toAddress.trim();
 
     const existingRecord = await this.prisma.fundingRecord.findFirst({
       where: {
@@ -79,6 +81,7 @@ export class FundingService {
           amount: new Prisma.Decimal(dto.amount),
           network: FundingNetwork.TRC20,
           txHash,
+          toAddress,
           remark
         }
       });
@@ -211,6 +214,16 @@ export class FundingService {
     ]);
 
     return new PaginatedFundingRecordsResponseDto(records, total, page, limit, true);
+  }
+
+  /** CMS 角标等：仅统计待审核条数 */
+  async countAdminPendingRecords(filters: { type?: string } = {}): Promise<{ total: number }> {
+    const where: Prisma.FundingRecordWhereInput = {
+      status: FundingStatus.PENDING,
+      ...(filters.type ? { type: this.parseFundingType(filters.type) } : {})
+    };
+    const total = await this.prisma.fundingRecord.count({ where });
+    return { total };
   }
 
   async reviewRecord(
