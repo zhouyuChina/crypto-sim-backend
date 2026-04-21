@@ -102,17 +102,20 @@ export class PublicLegalService {
     if (existingRecord) {
       this.ensureVersionMatches(existingRecord.version, dto.version);
 
+      const now = new Date();
       const updatedRecord = await this.prisma.publicLegalContent.update({
         where: { locale },
         data: {
           homeAntiScam: this.toJsonObject(dto.homeAntiScam),
           tutorialSectionE: this.toJsonObject(dto.tutorialSectionE),
           version: existingRecord.version + 1,
-          updatedBy: adminId
+          updatedBy: adminId,
+          isPublished: true,
+          publishedAt: now
         }
       });
 
-      this.logger.log(`Public legal content updated: locale=${locale}, adminId=${adminId}`);
+      this.logger.log(`Public legal content updated and published: locale=${locale}, adminId=${adminId}`);
 
       return new PublicLegalContentResponseDto(updatedRecord);
     }
@@ -125,6 +128,7 @@ export class PublicLegalService {
       );
     }
 
+    const now = new Date();
     const createdRecord = await this.prisma.publicLegalContent.create({
       data: {
         locale,
@@ -132,11 +136,13 @@ export class PublicLegalService {
         tutorialSectionE: this.toJsonObject(dto.tutorialSectionE),
         version: 1,
         createdBy: adminId,
-        updatedBy: adminId
+        updatedBy: adminId,
+        isPublished: true,
+        publishedAt: now
       }
     });
 
-    this.logger.log(`Public legal content created: locale=${locale}, adminId=${adminId}`);
+    this.logger.log(`Public legal content created and published: locale=${locale}, adminId=${adminId}`);
 
     return new PublicLegalContentResponseDto(createdRecord);
   }
