@@ -416,16 +416,7 @@ export class FundingService {
       );
     }
 
-    const normalized = txHash.trim();
-    if (normalized.length < 8) {
-      throw new BusinessException(
-        HttpStatus.BAD_REQUEST,
-        'INVALID_TX_HASH',
-        '充值交易哈希格式错误'
-      );
-    }
-
-    return normalized;
+    return txHash.trim();
   }
 
   private normalizeOptionalText(value?: string | null): string | null {
