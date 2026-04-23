@@ -91,7 +91,13 @@ export class IpWhitelistGuard implements CanActivate {
       try {
         if (trimmed.includes('/')) {
           const range = ipaddr.parseCIDR(trimmed);
-          if (addr.kind() === range[0].kind() && addr.match(range)) {
+          if (addr.kind() !== range[0].kind()) continue;
+          // 按类型分别调用 match，避免 IPv4 | IPv6 联合类型重载冲突
+          if (addr.kind() === 'ipv4') {
+            if ((addr as ipaddr.IPv4).match(range as [ipaddr.IPv4, number])) {
+              return true;
+            }
+          } else if ((addr as ipaddr.IPv6).match(range as [ipaddr.IPv6, number])) {
             return true;
           }
         } else {
