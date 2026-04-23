@@ -15,6 +15,7 @@ import { UpdateOperatorDto } from './dto/update-operator.dto';
 import { QueryOperatorsDto } from './dto/query-operators.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { generateUniqueUserId } from '../common/utils/user-id.generator';
 
 @Injectable()
 export class OperatorsService {
@@ -39,9 +40,11 @@ export class OperatorsService {
 
     // 创建操作员（使用一个默认密码哈希，因为他们不需要登录）
     const defaultPasswordHash = await bcrypt.hash(`custom_${uuidv4()}`, 12);
+    const id = await generateUniqueUserId(this.prisma);
 
     const operator = await this.prisma.user.create({
       data: {
+        id,
         email: dto.email,
         displayName: dto.displayName,
         phoneNumber: dto.phoneNumber,

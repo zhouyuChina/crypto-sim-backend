@@ -203,14 +203,33 @@ export class FundingService {
             }
           }
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { reviewedAt: { sort: 'desc', nulls: 'first' } },
+          { createdAt: 'desc' }
+        ],
         skip,
         take: limit
       }),
       this.prisma.fundingRecord.count({ where })
     ]);
 
-    return new PaginatedFundingRecordsResponseDto(records, total, page, limit, true);
+    // 批量查审核人（Admin）名称
+    const reviewerIds = [...new Set(records.map(r => r.reviewedBy).filter(Boolean))] as string[];
+    const reviewerMap = new Map<string, string>();
+    if (reviewerIds.length > 0) {
+      const admins = await this.prisma.admin.findMany({
+        where: { id: { in: reviewerIds } },
+        select: { id: true, displayName: true }
+      });
+      admins.forEach(a => reviewerMap.set(a.id, a.displayName));
+    }
+
+    const recordsWithReviewer = records.map(r => ({
+      ...r,
+      reviewerName: r.reviewedBy ? (reviewerMap.get(r.reviewedBy) ?? null) : null
+    }));
+
+    return new PaginatedFundingRecordsResponseDto(recordsWithReviewer, total, page, limit, true);
   }
 
   /** CMS 角标等：仅统计待审核条数 */
@@ -403,7 +422,7 @@ export class FundingService {
 
   private ensureTrc20Address(address: string): void {
     if (!this.trx20AddressPattern.test(address.trim())) {
-      throw new BusinessException(HttpStatus.BAD_REQUEST, 'INVALID_ADDRESS', '充值地址格式错误');
+      throw new BusinessException(HttpStatus.BAD_REQUEST, 'INVALID_ADDRESS', '地址格式错误');
     }
   }
 

@@ -28,7 +28,7 @@ model Admin {
 
 // 客户用户表 - 使用平台进行交易的用户
 model User {
-  id                 String             @id @default(uuid())
+  id                 String             @id
   email              String             @unique
   displayName        String
   passwordHash       String

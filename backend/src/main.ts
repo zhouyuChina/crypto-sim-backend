@@ -19,6 +19,9 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
   const configService = app.get(ConfigService);
 
+  // 信任反向代理（Nginx），使 req.ip 读取 X-Forwarded-For 首位
+  app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+
   // Serve static files — __dirname is backend/dist after build, so one level up = backend/
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',

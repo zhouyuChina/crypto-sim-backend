@@ -15,6 +15,7 @@ import { AdminTradingModule } from '../admin-trading/admin-trading.module';
 import { AuthModule } from '../auth/auth.module';
 import { CmsModule } from '../cms/cms.module';
 import { PublicCmsModule } from '../cms/public/public-cms.module';
+import { IpWhitelistGuard } from '../common/guards/ip-whitelist.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import configuration from '../config/configuration';
@@ -141,6 +142,10 @@ import { AppService } from './app.service';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: IpWhitelistGuard
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard

@@ -11,6 +11,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import * as bcrypt from 'bcrypt';
 
 import { BusinessException } from '../common/exceptions/business.exception';
+import { generateUniqueUserId } from '../common/utils/user-id.generator';
 
 @Injectable()
 export class UsersService {
@@ -42,9 +43,11 @@ export class UsersService {
     }
 
     const passwordHash = await bcrypt.hash(createUserDto.password, this.saltRounds);
+    const id = await generateUniqueUserId(this.prisma);
 
     const createdUser = await this.prisma.user.create({
       data: {
+        id,
         email: createUserDto.email,
         passwordHash,
         displayName: createUserDto.displayName,

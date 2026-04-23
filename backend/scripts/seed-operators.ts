@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { generateUniqueUserId } from '../src/common/utils/user-id.generator';
 
 const prisma = new PrismaClient();
 
@@ -117,9 +118,11 @@ async function seedOperators() {
 
     // 生成随机密码哈希（操作员不需要登录）
     const passwordHash = await bcrypt.hash(`operator_${uuidv4()}`, 12);
+    const id = await generateUniqueUserId(prisma);
 
     const operator = await prisma.user.create({
       data: {
+        id,
         email: operatorData.email,
         displayName: operatorData.displayName,
         phoneNumber: operatorData.phoneNumber,

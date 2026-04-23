@@ -46,10 +46,48 @@ export class TransactionLogService {
   /**
    * 创建新的交易记录
    */
+  /**
+   * 检查当前是否在市场关闭时间：
+   * 太平洋时间每周五 14:30 ~ 周日 15:00 禁止下单
+   */
+  private ensureMarketOpen(): void {
+    const now = new Date();
+    // 用 Intl 将 UTC 时间转换为太平洋时区的各分量
+    const ptParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    }).formatToParts(now);
+
+    const day = ptParts.find(p => p.type === 'weekday')?.value;   // Mon/Tue/.../Sat/Sun
+    const hour = parseInt(ptParts.find(p => p.type === 'hour')?.value ?? '0', 10);
+    const minute = parseInt(ptParts.find(p => p.type === 'minute')?.value ?? '0', 10);
+    const totalMinutes = hour * 60 + minute; // 当天已过分钟数
+
+    const FRI_CLOSE = 14 * 60 + 30; // 14:30
+    const SUN_OPEN  = 15 * 60 + 0;  // 15:00
+
+    const isClosed =
+      (day === 'Fri' && totalMinutes >= FRI_CLOSE) ||
+      day === 'Sat' ||
+      (day === 'Sun' && totalMinutes < SUN_OPEN);
+
+    if (isClosed) {
+      throw new BadRequestException(
+        '市场已休市，太平洋时间每周五 14:30 至周日 15:00 暂停交易，请稍后再试。'
+      );
+    }
+  }
+
   async createTransaction(
     userId: string,
     dto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
+    // 检查市场是否开放
+    this.ensureMarketOpen();
+
     // 验证用户是否存在
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

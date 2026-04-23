@@ -15,6 +15,7 @@ import type { RegisterDto } from './dto/register.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import type { UserEntity } from './entities/user.entity';
 import type { Role } from '../common/decorators/roles.decorator';
+import { generateUniqueUserId } from '../common/utils/user-id.generator';
 
 export interface AuthTokens {
   accessToken: string;
@@ -47,8 +48,10 @@ export class AuthService {
     // 手机号不需要唯一性验证，允许多个用户使用相同手机号
 
     const passwordHash = await this.hashValue(payload.password);
+    const id = await generateUniqueUserId(this.prisma);
     const user = await this.prisma.user.create({
       data: {
+        id,
         email: payload.email,
         displayName: payload.displayName,
         phoneNumber: payload.phoneNumber ?? null,  // 注册时手机号可选

@@ -17,6 +17,7 @@ type FundingRecordLike = {
   reviewNote?: string | null;
   reviewedAt?: Date | null;
   reviewedBy?: string | null;
+  reviewerName?: string | null;
   balanceApplied?: boolean;
   beforeRealBalance?: DecimalLike | number | null;
   afterRealBalance?: DecimalLike | number | null;
@@ -50,6 +51,7 @@ export class FundingRecordResponseDto {
   reviewNote: string | null;
   reviewedAt: Date | null;
   reviewedBy: string | null;
+  reviewerName: string | null;
   balanceApplied: boolean;
   beforeRealBalance: number | null;
   afterRealBalance: number | null;
@@ -69,6 +71,7 @@ export class FundingRecordResponseDto {
     this.reviewNote = record.reviewNote ?? null;
     this.reviewedAt = record.reviewedAt ?? null;
     this.reviewedBy = record.reviewedBy ?? null;
+    this.reviewerName = record.reviewerName ?? null;
     this.balanceApplied = record.balanceApplied ?? false;
     this.beforeRealBalance = toNumber(record.beforeRealBalance);
     this.afterRealBalance = toNumber(record.afterRealBalance);

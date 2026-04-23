@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
+import { generateUniqueUserId } from '../src/common/utils/user-id.generator';
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -54,6 +56,7 @@ async function main() {
       isActive: true,
     },
     create: {
+      id: await generateUniqueUserId(prisma),
       email: userEmail,
       displayName: '测试用户',
       phoneNumber: userPhone,
