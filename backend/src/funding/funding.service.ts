@@ -20,6 +20,7 @@ import {
 import { QueryAdminFundingRecordsDto } from './dto/query-admin-funding-records.dto';
 import { QueryFundingRecordsDto } from './dto/query-funding-records.dto';
 import { ReviewFundingRecordDto } from './dto/review-funding-record.dto';
+import { UpdateWithdrawAddressDto } from './dto/update-withdraw-address.dto';
 
 const USER_FUNDING_TYPE_MAP = {
   deposit: FundingType.DEPOSIT,
@@ -240,6 +241,71 @@ export class FundingService {
     };
     const total = await this.prisma.fundingRecord.count({ where });
     return { total };
+  }
+
+  /**
+   * 管理员修改待审核提领记录的收款地址。
+   * 原 `toAddress` 字段保留用户最初提交的地址以便审计，
+   * 修改后的新地址写入 `editedToAddress`。
+   */
+  async updateWithdrawAddress(
+    id: string,
+    dto: UpdateWithdrawAddressDto,
+    reviewerId: string
+  ): Promise<{ record: FundingRecordResponseDto }> {
+    const nextAddress = dto.toAddress.trim();
+    this.ensureTrc20Address(nextAddress);
+
+    const record = await this.prisma.fundingRecord.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: { id: true, displayName: true, realBalance: true }
+        }
+      }
+    });
+
+    if (!record) {
+      throw new BusinessException(
+        HttpStatus.NOT_FOUND,
+        'FUNDING_RECORD_NOT_FOUND',
+        '出入金记录不存在'
+      );
+    }
+
+    if (record.type.toString().toUpperCase() !== FundingType.WITHDRAW) {
+      throw new BusinessException(
+        HttpStatus.BAD_REQUEST,
+        'WITHDRAW_ONLY',
+        '仅提领记录可修改收款地址'
+      );
+    }
+
+    if (record.status.toString().toUpperCase() !== FundingStatus.PENDING) {
+      throw new BusinessException(
+        HttpStatus.CONFLICT,
+        'FUNDING_ALREADY_REVIEWED',
+        '仅待审核记录可修改收款地址'
+      );
+    }
+
+    const updated = await this.prisma.fundingRecord.update({
+      where: { id },
+      data: { editedToAddress: nextAddress },
+      include: {
+        user: {
+          select: { id: true, displayName: true, realBalance: true }
+        }
+      }
+    });
+
+    this.logger.log(
+      `Funding withdraw address edited: recordId=${id}, reviewerId=${reviewerId}, newAddress=${nextAddress}`
+    );
+
+    return {
+      record: new FundingRecordResponseDto(updated, true)
+    };
   }
 
   async reviewRecord(

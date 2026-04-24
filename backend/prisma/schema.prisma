@@ -235,6 +235,7 @@ model FundingRecord {
   network           FundingNetwork @default(TRC20)
   txHash            String?
   toAddress         String?
+  editedToAddress   String?        // 管理员修改后的提领地址（仅 WITHDRAW 使用，保留原 toAddress 以便审计）
   remark            String?        @db.Text
   reviewNote        String?        @db.Text
   reviewedAt        DateTime?

@@ -13,6 +13,7 @@ type FundingRecordLike = {
   network: FundingNetwork | string;
   txHash?: string | null;
   toAddress?: string | null;
+  editedToAddress?: string | null;
   remark?: string | null;
   reviewNote?: string | null;
   reviewedAt?: Date | null;
@@ -47,6 +48,8 @@ export class FundingRecordResponseDto {
   method: string;
   txHash: string | null;
   toAddress: string | null;
+  editedToAddress: string | null;
+  effectiveToAddress: string | null;
   remark: string | null;
   reviewNote: string | null;
   reviewedAt: Date | null;
@@ -67,6 +70,8 @@ export class FundingRecordResponseDto {
     this.network = record.network;
     this.txHash = record.txHash ?? null;
     this.toAddress = record.toAddress ?? null;
+    this.editedToAddress = record.editedToAddress ?? null;
+    this.effectiveToAddress = this.editedToAddress ?? this.toAddress;
     this.remark = record.remark ?? null;
     this.reviewNote = record.reviewNote ?? null;
     this.reviewedAt = record.reviewedAt ?? null;
@@ -78,7 +83,7 @@ export class FundingRecordResponseDto {
     this.method =
       type === 'deposit'
         ? `${record.network} · TXID: ${record.txHash ?? '-'}`
-        : `${record.network} · Address: ${record.toAddress ?? '-'}`;
+        : `${record.network} · Address: ${this.effectiveToAddress ?? '-'}`;
 
     if (includeUser) {
       this.userId = record.userId;
