@@ -10,6 +10,8 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import type { User } from '@prisma/client';
 
+import { EmailVerificationType } from '../email/dto/send-verification-code.dto';
+import { EmailVerificationService } from '../email/email-verification.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { RegisterDto } from './dto/register.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
@@ -30,13 +32,14 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly emailVerificationService: EmailVerificationService
   ) {
     this.saltRounds = this.configService.get<number>('auth.bcryptSaltRounds') ?? 12;
   }
 
   async register(payload: RegisterDto): Promise<{ user: UserEntity; tokens: AuthTokens }> {
-    // 检查邮箱是否已存在
+    // 先校验邮箱是否被占用，避免消耗验证码
     const existingUser = await this.prisma.user.findUnique({
       where: { email: payload.email }
     });
@@ -44,6 +47,13 @@ export class AuthService {
     if (existingUser) {
       throw new ConflictException('Email already registered');
     }
+
+    // 校验邮箱验证码（通过后会把该验证码标记为已使用）
+    await this.emailVerificationService.verifyCode(
+      payload.email,
+      payload.verificationCode,
+      EmailVerificationType.REGISTER
+    );
 
     // 手机号不需要唯一性验证，允许多个用户使用相同手机号
 

@@ -73,6 +73,17 @@ export class EmailVerificationService {
     email: string,
     type: EmailVerificationType,
   ): Promise<{ message: string; expiresIn: number }> {
+    // 針對不同類型做前置業務校驗，避免無意義的郵件發送
+    if (type === EmailVerificationType.REGISTER) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new BadRequestException('該郵箱已被註冊，請直接登入');
+      }
+    }
+
     // 檢查發送頻率
     this.checkSendFrequency(email, type);
 
