@@ -3,8 +3,11 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
+import { QueryAdminsDto, SortOrder } from './dto/query-admins.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 
 @Injectable()
@@ -168,27 +171,61 @@ export class AdminAuthService {
   /**
    * 获取所有管理员列表
    */
-  async getAllAdmins() {
-    const admins = await this.prisma.admin.findMany({
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        displayName: true,
-        permissions: true,
-        isActive: true,
-        lastLoginAt: true,
-        lastLoginIp: true,
-        remark: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+  /**
+   * 分页查询管理员列表
+   * 支持：关键字搜索（username / email / displayName）、按字段排序、启用状态筛选
+   */
+  async findAllAdmins(query: QueryAdminsDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 10;
+    const skip = (page - 1) * pageSize;
+    const sortBy = query.sortBy ?? 'createdAt';
+    const sortOrder = query.sortOrder ?? SortOrder.DESC;
 
-    return admins;
+    const where: Prisma.AdminWhereInput = {};
+
+    if (query.search?.trim()) {
+      const keyword = query.search.trim();
+      where.OR = [
+        { username: { contains: keyword, mode: 'insensitive' } },
+        { email: { contains: keyword, mode: 'insensitive' } },
+        { displayName: { contains: keyword, mode: 'insensitive' } },
+      ];
+    }
+
+    if (typeof query.isActive === 'boolean') {
+      where.isActive = query.isActive;
+    }
+
+    const [admins, total] = await Promise.all([
+      this.prisma.admin.findMany({
+        where,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          displayName: true,
+          permissions: true,
+          isActive: true,
+          lastLoginAt: true,
+          lastLoginIp: true,
+          remark: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { [sortBy]: sortOrder },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.admin.count({ where }),
+    ]);
+
+    return {
+      data: admins,
+      total,
+      page,
+      pageSize,
+    };
   }
 
   /**

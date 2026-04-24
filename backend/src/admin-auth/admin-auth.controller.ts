@@ -1,13 +1,19 @@
-import { Controller, Post, Body, UseGuards, Get, Put, Delete, Param } from '@nestjs/common';
-import { AdminAuthService } from './admin-auth.service';
-import { AdminLoginDto } from './dto/admin-login.dto';
-import { CreateAdminDto } from './dto/create-admin.dto';
-import { UpdateAdminDto } from './dto/update-admin.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
 
+import { AdminAuthService } from './admin-auth.service';
+import { AdminLoginDto } from './dto/admin-login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+
+/**
+ * 管理员认证接口（登录/登出/刷新/当前信息）
+ * 路径前缀：/api/admin/auth
+ *
+ * 注意：管理员账号 CRUD 已迁移至 AdminManagementController（/api/admin/admins）
+ */
 @Controller('admin/auth')
 export class AdminAuthController {
   constructor(private readonly adminAuthService: AdminAuthService) {}
@@ -34,55 +40,5 @@ export class AdminAuthController {
   @Get('me')
   async getProfile(@CurrentUser() user: any) {
     return this.adminAuthService.validateAdmin(user.sub);
-  }
-
-  // ==================== 管理员管理接口 ====================
-
-  /**
-   * 获取所有管理员列表
-   */
-  @UseGuards(JwtAuthGuard)
-  @Get('admins')
-  async getAllAdmins() {
-    return this.adminAuthService.getAllAdmins();
-  }
-
-  /**
-   * 获取单个管理员详情
-   */
-  @UseGuards(JwtAuthGuard)
-  @Get('admins/:id')
-  async getAdminById(@Param('id') id: string) {
-    return this.adminAuthService.getAdminById(id);
-  }
-
-  /**
-   * 创建新管理员
-   */
-  @UseGuards(JwtAuthGuard)
-  @Post('admins')
-  async createAdmin(@Body() createAdminDto: CreateAdminDto) {
-    return this.adminAuthService.createAdmin(createAdminDto);
-  }
-
-  /**
-   * 更新管理员信息
-   */
-  @UseGuards(JwtAuthGuard)
-  @Put('admins/:id')
-  async updateAdmin(
-    @Param('id') id: string,
-    @Body() updateAdminDto: UpdateAdminDto,
-  ) {
-    return this.adminAuthService.updateAdmin(id, updateAdminDto);
-  }
-
-  /**
-   * 删除管理员
-   */
-  @UseGuards(JwtAuthGuard)
-  @Delete('admins/:id')
-  async deleteAdmin(@Param('id') id: string) {
-    return this.adminAuthService.deleteAdmin(id);
   }
 }
