@@ -24,7 +24,7 @@ export default registerAs('email', () => {
     },
     defaults: {
       from: {
-        name: process.env.EMAIL_FROM_NAME || '加密货币交易平台',
+        name: process.env.EMAIL_FROM_NAME || 'Zenvy',
         address: process.env.EMAIL_FROM || process.env.SMTP_USER,
       },
     },

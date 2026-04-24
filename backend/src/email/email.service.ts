@@ -12,7 +12,7 @@ export class EmailService {
   ) {}
 
   /**
-   * 发送验证码邮件
+   * Send verification code email (English content)
    */
   async sendVerificationCode(
     email: string,
@@ -22,31 +22,39 @@ export class EmailService {
     const appName = this.configService.get('email.defaults.from.name');
     const expiresIn = Math.floor(
       this.configService.get('email.verification.expiresIn') / 60,
-    ); // 转换为分钟
+    ); // seconds → minutes
 
-    // 根據類型設置不同的標題和問候語
+    // Per-type subject / title / greeting
+    const subjectMap: Record<string, string> = {
+      REGISTER: 'Verify Your Email',
+      RESET_PASSWORD: 'Reset Your Password',
+      CHANGE_EMAIL: 'Confirm Email Change',
+      SECURITY: 'Security Verification',
+    };
+
     const titleMap: Record<string, string> = {
-      REGISTER: '註冊驗證',
-      RESET_PASSWORD: '重置密碼',
-      CHANGE_EMAIL: '修改郵箱',
-      SECURITY: '安全驗證',
+      REGISTER: 'Welcome! Please verify your email',
+      RESET_PASSWORD: 'Reset your password',
+      CHANGE_EMAIL: 'Confirm your new email address',
+      SECURITY: 'Security verification required',
     };
 
     const greetingMap: Record<string, string> = {
-      REGISTER: '感謝您註冊我們的平台！',
-      RESET_PASSWORD: '您正在重置密碼。',
-      CHANGE_EMAIL: '您正在修改郵箱地址。',
-      SECURITY: '您正在進行安全操作驗證。',
+      REGISTER: 'Thank you for signing up. Use the code below to complete your registration.',
+      RESET_PASSWORD: 'We received a request to reset your password. Use the code below to continue.',
+      CHANGE_EMAIL: 'You are changing the email address on your account. Use the code below to confirm.',
+      SECURITY: 'You are performing a sensitive action. Use the code below to verify your identity.',
     };
 
-    const title = titleMap[type] || '郵箱驗證';
-    const greeting = greetingMap[type] || '您正在進行郵箱驗證。';
+    const subjectText = subjectMap[type] || 'Verification Code';
+    const title = titleMap[type] || 'Email verification';
+    const greeting = greetingMap[type] || 'You are performing an email verification.';
 
     try {
       await this.mailerService.sendMail({
         to: email,
-        subject: `【${appName}】${title}码`,
-        template: 'verification-code', // 只需要模板名称，不需要完整路径
+        subject: `[${appName}] ${subjectText}`,
+        template: 'verification-code',
         context: {
           appName,
           title,
@@ -57,12 +65,12 @@ export class EmailService {
         },
       });
 
-      this.logger.log(`驗證碼郵件已發送至 ${email}，類型：${type}`);
+      this.logger.log(`Verification email sent to ${email} (type: ${type})`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '未知錯誤';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`發送驗證碼郵件失敗: ${errorMessage}`, errorStack);
-      throw new Error('發送驗證碼郵件失敗，請稍後重試');
+      this.logger.error(`Failed to send verification email: ${errorMessage}`, errorStack);
+      throw new Error('Failed to send verification email, please try again later.');
     }
   }
 }
