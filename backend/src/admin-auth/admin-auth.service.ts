@@ -179,6 +179,7 @@ export class AdminAuthService {
         isActive: true,
         lastLoginAt: true,
         lastLoginIp: true,
+        remark: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -205,6 +206,7 @@ export class AdminAuthService {
         isActive: true,
         lastLoginAt: true,
         lastLoginIp: true,
+        remark: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -221,7 +223,7 @@ export class AdminAuthService {
    * 创建新管理员
    */
   async createAdmin(createAdminDto: CreateAdminDto) {
-    const { username, email, password, displayName, permissions } = createAdminDto;
+    const { username, email, password, displayName, permissions, remark } = createAdminDto;
 
     // 检查用户名是否已存在
     const existingUsername = await this.prisma.admin.findUnique({
@@ -253,6 +255,7 @@ export class AdminAuthService {
         displayName: displayName || username,
         permissions: permissions || ['*'], // 默认为超级管理员
         isActive: true,
+        remark: remark?.trim() || null,
       },
       select: {
         id: true,
@@ -261,6 +264,7 @@ export class AdminAuthService {
         displayName: true,
         permissions: true,
         isActive: true,
+        remark: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -282,7 +286,7 @@ export class AdminAuthService {
       throw new NotFoundException('管理员不存在');
     }
 
-    const { username, email, password, displayName, isActive, permissions } = updateAdminDto;
+    const { username, email, password, displayName, isActive, permissions, remark } = updateAdminDto;
 
     // 如果更新用户名，检查是否冲突
     if (username && username !== existingAdmin.username) {
@@ -314,6 +318,7 @@ export class AdminAuthService {
     if (displayName) updateData.displayName = displayName;
     if (typeof isActive === 'boolean') updateData.isActive = isActive;
     if (permissions) updateData.permissions = permissions;
+    if (remark !== undefined) updateData.remark = remark.trim() || null;
 
     // 如果更新密码，需要加密
     if (password) {
@@ -333,6 +338,7 @@ export class AdminAuthService {
         isActive: true,
         lastLoginAt: true,
         lastLoginIp: true,
+        remark: true,
         createdAt: true,
         updatedAt: true,
       },

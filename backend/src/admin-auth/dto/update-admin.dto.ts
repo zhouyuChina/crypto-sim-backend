@@ -25,4 +25,8 @@ export class UpdateAdminDto {
   @IsArray()
   @IsOptional()
   permissions?: string[];
+
+  @IsString()
+  @IsOptional()
+  remark?: string;
 }

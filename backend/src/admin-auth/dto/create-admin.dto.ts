@@ -18,4 +18,8 @@ export class CreateAdminDto {
   @IsArray()
   @IsOptional()
   permissions?: string[];
+
+  @IsString()
+  @IsOptional()
+  remark?: string;
 }
