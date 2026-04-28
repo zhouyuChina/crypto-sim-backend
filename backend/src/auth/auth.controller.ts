@@ -85,7 +85,7 @@ export class AuthController {
   @Post('upload-id-card')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: join(__dirname, '..', '..', 'uploads', 'id-cards'),
+      destination: join(__dirname, '..', 'uploads', 'id-cards'),
       filename: (req, file, callback) => {
         const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
         callback(null, uniqueName);
@@ -146,7 +146,7 @@ export class AuthController {
   @Post('upload-avatar')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: join(__dirname, '..', '..', 'uploads', 'avatars'),
+      destination: join(__dirname, '..', 'uploads', 'avatars'),
       filename: (req, file, callback) => {
         const uniqueName = `avatar-${uuidv4()}${extname(file.originalname)}`;
         callback(null, uniqueName);
@@ -207,7 +207,7 @@ export class AuthController {
   @Post('upload-avatar/:userId')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: join(__dirname, '..', '..', 'uploads', 'avatars'),
+      destination: join(__dirname, '..', 'uploads', 'avatars'),
       filename: (req, file, callback) => {
         const uniqueName = `avatar-${uuidv4()}${extname(file.originalname)}`;
         callback(null, uniqueName);
