@@ -38,7 +38,7 @@ export class AuthService {
     this.saltRounds = this.configService.get<number>('auth.bcryptSaltRounds') ?? 12;
   }
 
-  async register(payload: RegisterDto): Promise<{ user: UserEntity; tokens: AuthTokens }> {
+  async register(payload: RegisterDto): Promise<{ user: UserEntity }> {
     // 先校验邮箱是否被占用，避免消耗验证码
     const existingUser = await this.prisma.user.findUnique({
       where: { email: payload.email }
@@ -71,10 +71,8 @@ export class AuthService {
       }
     });
 
-    const tokens = await this.generateAndPersistTokens(user);
     return {
       user: this.sanitizeUser(user),
-      tokens
     };
   }
 
