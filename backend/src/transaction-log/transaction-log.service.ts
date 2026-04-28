@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   Prisma,
   TransactionStatus,
@@ -633,6 +634,36 @@ export class TransactionLogService {
     this.logger.log(`交易已取消: ${orderNumber}`);
 
     return this.mapToResponseDto(updatedTransaction);
+  }
+
+  /**
+   * 兜底定时任务：每分钟扫描已过期但仍 PENDING 的交易并自动结算。
+   *
+   * 背景：正常路径是前端在 expiryTime 时调 POST /transactions/:orderNumber/settle，
+   * 但若客户端断网、关页面或前端异常未触发，订单就会永远卡在 PENDING。
+   * 这个 cron 是服务端兜底，最坏延迟 1 分钟。
+   *
+   * 用 isAutoSettling 做并发锁，避免上一轮没跑完就开下一轮（大量过期单时）。
+   */
+  private isAutoSettling = false;
+
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'auto-settle-expired-tx' })
+  async cronAutoSettleExpired(): Promise<void> {
+    if (this.isAutoSettling) {
+      this.logger.warn('[兜底Cron] 上一轮自动结算仍在进行，跳过本轮');
+      return;
+    }
+    this.isAutoSettling = true;
+    try {
+      const settled = await this.autoSettleExpiredTransactions();
+      if (settled > 0) {
+        this.logger.log(`[兜底Cron] 自动结算了 ${settled} 笔过期交易`);
+      }
+    } catch (e) {
+      this.logger.error('[兜底Cron] 自动结算异常', (e as Error).stack);
+    } finally {
+      this.isAutoSettling = false;
+    }
   }
 
   /**
