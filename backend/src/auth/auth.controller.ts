@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Put, Patch, Param, Query, Request, UseGuards, Ip, UseInterceptors, UploadedFile, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import type { Request as ExpressRequest } from 'express';
 
@@ -85,7 +85,7 @@ export class AuthController {
   @Post('upload-id-card')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: './uploads/id-cards',
+      destination: join(__dirname, '..', '..', 'uploads', 'id-cards'),
       filename: (req, file, callback) => {
         const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
         callback(null, uniqueName);
@@ -146,7 +146,7 @@ export class AuthController {
   @Post('upload-avatar')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: './uploads/avatars',
+      destination: join(__dirname, '..', '..', 'uploads', 'avatars'),
       filename: (req, file, callback) => {
         const uniqueName = `avatar-${uuidv4()}${extname(file.originalname)}`;
         callback(null, uniqueName);
@@ -207,7 +207,7 @@ export class AuthController {
   @Post('upload-avatar/:userId')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: './uploads/avatars',
+      destination: join(__dirname, '..', '..', 'uploads', 'avatars'),
       filename: (req, file, callback) => {
         const uniqueName = `avatar-${uuidv4()}${extname(file.originalname)}`;
         callback(null, uniqueName);
