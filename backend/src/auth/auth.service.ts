@@ -138,23 +138,19 @@ export class AuthService {
     });
   }
 
-  async uploadIdCard(userId: string, type: 'front' | 'back', fileUrl: string): Promise<UserEntity> {
-    // 获取当前用户信息
-    const currentUser = await this.prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!currentUser) {
-      throw new UnauthorizedException('User not found');
-    }
-
+  async uploadIdCard(
+    userId: string,
+    type: 'front' | 'back' | 'passport',
+    fileUrl: string,
+    currentVerificationStatus: string,
+  ): Promise<UserEntity> {
     const updateData = type === 'front'
       ? { idCardFront: fileUrl }
-      : { idCardBack: fileUrl };
+      : type === 'back'
+        ? { idCardBack: fileUrl }
+        : { passportPhoto: fileUrl };
 
-    // 当用户上传身份证照片后，将状态更新为审核中
-    // 但只在当前状态不是 VERIFIED 时才更新（避免覆盖已验证的状态）
-    if (currentUser.verificationStatus !== 'VERIFIED') {
+    if (currentVerificationStatus !== 'VERIFIED') {
       Object.assign(updateData, { verificationStatus: 'IN_REVIEW' });
     }
 
@@ -181,6 +177,7 @@ export class AuthService {
       winRate: Number(safeUser.winRate),
       idCardFront: safeUser.idCardFront ?? null,
       idCardBack: safeUser.idCardBack ?? null,
+      passportPhoto: safeUser.passportPhoto ?? null,
     } as UserEntity;
   }
 

@@ -40,14 +40,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       const bodyUserId = request.body?.userId;
 
       // 如果有 Authorization header，尝试正常解析
+      // 注意：此处不捕获异常 —— 若 JWT 无效，应返回 401 而非 fallback 到假用户
       if (authHeader) {
-        try {
-          const result = await super.canActivate(context);
-          if (result) {
-            return true;
-          }
-        } catch (error) {
-          // JWT 解析失败，继续使用默认用户
+        const result = await super.canActivate(context);
+        if (result) {
+          return true;
         }
       }
 

@@ -41,6 +41,7 @@ model User {
   avatar             String? // 用户头像 URL
   idCardFront        String? // 身份证正面照片 URL
   idCardBack         String? // 身份证反面照片 URL
+  passportPhoto      String? // 护照照片 URL
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   accountBalance     Decimal            @default(10000) @db.Decimal(18, 8)

@@ -116,7 +116,7 @@ export class AuthController {
     const host = req.get('host') ?? 'localhost:3000';
     const baseUrl = `${protocol}://${host}`;
     const fileUrl = `${baseUrl}/uploads/id-cards/${file.filename}`;
-    const updatedUser = await this.authService.uploadIdCard(user.id, dto.type, fileUrl);
+    const updatedUser = await this.authService.uploadIdCard(user.id, dto.type, fileUrl, user.verificationStatus);
 
     return {
       message: 'ID card uploaded successfully',

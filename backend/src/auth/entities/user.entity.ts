@@ -12,6 +12,7 @@ export interface UserEntity {
   avatar?: string | null;      // 用户头像 URL
   idCardFront?: string | null;  // 身份证正面照片 URL
   idCardBack?: string | null;   // 身份证反面照片 URL
+  passportPhoto?: string | null; // 护照照片 URL
   createdAt: Date;
   updatedAt: Date;
 

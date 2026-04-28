@@ -6,6 +6,7 @@ export class UserResponseDto {
   avatar?: string;
   idCardFront?: string;
   idCardBack?: string;
+  passportPhoto?: string;
   roles: string[];
   isActive: boolean;
   verificationStatus: string;
@@ -26,6 +27,7 @@ export class UserResponseDto {
     this.avatar = user.avatar;
     this.idCardFront = user.idCardFront;
     this.idCardBack = user.idCardBack;
+    this.passportPhoto = user.passportPhoto;
     this.roles = user.roles || [];
     this.isActive = user.isActive;
     this.verificationStatus = user.verificationStatus;

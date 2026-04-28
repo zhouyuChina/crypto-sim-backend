@@ -48,4 +48,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsUrl()
   idCardBack?: string;
+
+  @IsOptional()
+  @IsUrl()
+  passportPhoto?: string;
 }
