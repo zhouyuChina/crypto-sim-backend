@@ -13,6 +13,7 @@ export interface UserEntity {
   idCardFront?: string | null;  // 身份证正面照片 URL
   idCardBack?: string | null;   // 身份证反面照片 URL
   passportPhoto?: string | null; // 护照照片 URL
+  documentType?: string | null;  // 当前提交的证件类型：id_card | passport
   createdAt: Date;
   updatedAt: Date;
 

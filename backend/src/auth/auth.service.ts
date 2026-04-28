@@ -143,10 +143,10 @@ export class AuthService {
     currentVerificationStatus: string,
   ): Promise<UserEntity> {
     const updateData = type === 'front'
-      ? { idCardFront: fileUrl }
+      ? { idCardFront: fileUrl, documentType: 'id_card' }
       : type === 'back'
-        ? { idCardBack: fileUrl }
-        : { passportPhoto: fileUrl };
+        ? { idCardBack: fileUrl, documentType: 'id_card' }
+        : { passportPhoto: fileUrl, documentType: 'passport' };
 
     if (currentVerificationStatus !== 'VERIFIED') {
       Object.assign(updateData, { verificationStatus: 'IN_REVIEW' });
@@ -176,6 +176,7 @@ export class AuthService {
       idCardFront: safeUser.idCardFront ?? null,
       idCardBack: safeUser.idCardBack ?? null,
       passportPhoto: safeUser.passportPhoto ?? null,
+      documentType: safeUser.documentType ?? null,
     } as UserEntity;
   }
 
