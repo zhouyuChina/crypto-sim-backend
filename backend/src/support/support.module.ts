@@ -18,7 +18,7 @@ import { SupportSseService } from './support-sse.service';
     RealtimeModule,
     MulterModule.register({
       storage: diskStorage({
-        destination: join(__dirname, '..', '..', 'uploads', 'support-images'),
+        destination: join(process.cwd(), 'uploads', 'support-images'),
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)
