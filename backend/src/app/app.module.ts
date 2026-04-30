@@ -99,20 +99,19 @@ import { AppService } from './app.service';
         }
       ]
     }),
-    // BullMQ 需要 Redis，开发模式下暂时注释
-    // TODO: 等需要使用消息队列功能时再启用
-    // BullModule.forRootAsync({
-    //   inject: [ConfigService],
-    //   useFactory: (configService: ConfigService) => ({
-    //     connection: {
-    //       host: configService.get<string>('redis.host'),
-    //       port: configService.get<number>('redis.port'),
-    //       db: configService.get<number>('redis.bullmqDb'),
-    //       password: configService.get<string>('redis.password') || undefined
-    //     },
-    //     prefix: configService.get<string>('queue.prefix')
-    //   })
-    // }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('redis.host'),
+          port: configService.get<number>('redis.port'),
+          db: configService.get<number>('redis.bullmqDb'),
+          username: configService.get<string>('redis.username') || undefined,
+          password: configService.get<string>('redis.password') || undefined,
+        },
+        prefix: configService.get<string>('queue.prefix'),
+      }),
+    }),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
     TerminusModule,
