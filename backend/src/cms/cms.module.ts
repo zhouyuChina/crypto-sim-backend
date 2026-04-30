@@ -6,6 +6,7 @@ import { CarouselsModule } from './carousels/carousels.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { TradingPerformanceModule } from './trading-performance/trading-performance.module';
 import { PublicLegalModule } from './public-legal/public-legal.module';
+import { TutorialModule } from './tutorial/tutorial.module';
 import { CmsFundingPendingController } from './funding-pending/cms-funding-pending.controller';
 
 @Module({
@@ -15,7 +16,8 @@ import { CmsFundingPendingController } from './funding-pending/cms-funding-pendi
     CarouselsModule,
     LeaderboardModule,
     TradingPerformanceModule,
-    PublicLegalModule
+    PublicLegalModule,
+    TutorialModule,
   ],
   controllers: [CmsFundingPendingController],
   exports: [
@@ -23,7 +25,8 @@ import { CmsFundingPendingController } from './funding-pending/cms-funding-pendi
     CarouselsModule,
     LeaderboardModule,
     TradingPerformanceModule,
-    PublicLegalModule
-  ]
+    PublicLegalModule,
+    TutorialModule,
+  ],
 })
 export class CmsModule {}
