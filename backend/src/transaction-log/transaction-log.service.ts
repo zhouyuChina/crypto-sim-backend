@@ -4,6 +4,8 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
@@ -16,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from '../market-data/market-data.service';
 import { SettingsService } from '../settings/settings.service';
 import { AdminTradingGateway } from '../admin-trading/admin-trading.gateway';
+import { QueueService } from '../queue/queue.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { QueryTransactionsDto } from './dto/query-transactions.dto';
 import { AdminQueryTransactionsDto } from './dto/admin-query-transactions.dto';
@@ -42,6 +45,8 @@ export class TransactionLogService {
     private readonly marketDataService: MarketDataService,
     private readonly settingsService: SettingsService,
     private readonly adminTradingGateway: AdminTradingGateway,
+    @Inject(forwardRef(() => QueueService))
+    private readonly queueService: QueueService,
   ) {}
 
   /**
@@ -214,6 +219,19 @@ export class TransactionLogService {
     this.logger.log(
       `交易创建成功: ${orderNumber}, 用户: ${userId}, 账户类型: ${accountType}, 资产: ${dto.assetType}`,
     );
+
+    // 投递到期结算任务到 BullMQ（精准定时触发，无需前端发起）
+    try {
+      await this.queueService.enqueueTransactionSettle(
+        orderNumber,
+        dto.duration * 1000,
+      );
+    } catch (e) {
+      this.logger.error(
+        `[Settle] 投递结算任务失败 orderNumber=${orderNumber}，将依赖 cron 兜底`,
+        (e as Error).stack,
+      );
+    }
 
     // 实时推送新交易到管理端
     const responseDto = this.mapToResponseDto(transaction);
@@ -647,7 +665,44 @@ export class TransactionLogService {
    */
   private isAutoSettling = false;
 
-  @Cron(CronExpression.EVERY_MINUTE, { name: 'auto-settle-expired-tx' })
+  /**
+   * 由 BullMQ 触发的单笔到期结算（主路径）
+   * 容错：如果订单已被结算（前端提前平仓 / 兜底 cron 抢先），直接返回
+   */
+  async autoSettleByOrderNumber(orderNumber: string): Promise<void> {
+    const transaction = await this.prisma.transactionLog.findUnique({
+      where: { orderNumber },
+    });
+
+    if (!transaction) {
+      this.logger.warn(`[Settle] 订单不存在，跳过: ${orderNumber}`);
+      return;
+    }
+
+    if (transaction.status !== TransactionStatus.PENDING) {
+      this.logger.debug(
+        `[Settle] 订单已非 PENDING，跳过: ${orderNumber}, status=${transaction.status}`,
+      );
+      return;
+    }
+
+    let exitPrice: number;
+    if (transaction.currentPrice && Number(transaction.currentPrice) > 0) {
+      exitPrice = Number(transaction.currentPrice);
+    } else {
+      exitPrice = await this.getCurrentPrice(transaction.assetType);
+    }
+
+    await this.settleTransactionBySystem(transaction.orderNumber, exitPrice, {
+      reason: 'AUTO_EXPIRED',
+    });
+  }
+
+  /**
+   * 兜底 cron：降为每 5 分钟扫描一次。
+   * 主路径是 BullMQ 精准触发；此处仅防御 Redis/队列故障导致的漏单。
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES, { name: 'auto-settle-expired-tx' })
   async cronAutoSettleExpired(): Promise<void> {
     if (this.isAutoSettling) {
       this.logger.warn('[兜底Cron] 上一轮自动结算仍在进行，跳过本轮');
