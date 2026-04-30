@@ -503,16 +503,27 @@ export class TransactionLogService {
         ? exitPrice
         : await this.getCurrentPrice(transaction.assetType);
 
-    // 新的判赢逻辑：默认全部判输，只有强制设置为WIN时才判赢
+    // 判赢逻辑：
+    // 1) 管理员强制结果（forcedResult）优先
+    // 2) DEMO（模拟）账户按实际涨跌计算
+    // 3) REAL（真实）账户保留默认判输（由管理员通过 forcedResult / 大盘控制）
     let isWin: boolean;
     if (options.forcedResult) {
-      // 只有强制设置为WIN时才判赢
       isWin = options.forcedResult === 'WIN';
       this.logger.log(`交易 ${orderNumber} 强制结算，结果: ${isWin ? '赢' : '输'}`);
+    } else if (transaction.accountType === AccountType.DEMO) {
+      const entryPrice = Number(transaction.entryPrice);
+      if (transaction.direction === 'CALL') {
+        isWin = resolvedExitPrice > entryPrice;
+      } else {
+        isWin = resolvedExitPrice < entryPrice;
+      }
+      this.logger.log(
+        `交易 ${orderNumber} (DEMO) 按涨跌结算: 入场=${entryPrice}, 出场=${resolvedExitPrice}, 方向=${transaction.direction}, 结果=${isWin ? '赢' : '输'}`,
+      );
     } else {
-      // 默认判输
       isWin = false;
-      this.logger.log(`交易 ${orderNumber} 自动结算，默认判输`);
+      this.logger.log(`交易 ${orderNumber} (REAL) 自动结算，默认判输`);
     }
 
     const investAmount = Number(transaction.investAmount);
