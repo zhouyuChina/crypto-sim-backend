@@ -35,6 +35,7 @@ import { TradingManagementModule } from '../trading-management/trading-managemen
 import { SupportModule } from '../support/support.module';
 import { MarketSessionModule } from '../market-session/market-session.module';
 import { FundingModule } from '../funding/funding.module';
+import { FrontendIpWhitelistModule } from '../frontend-ip-whitelist/frontend-ip-whitelist.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -136,7 +137,8 @@ import { AppService } from './app.service';
     MarketSessionModule,
     AdminTradingModule,
     EmailModule,
-    FundingModule
+    FundingModule,
+    FrontendIpWhitelistModule,
   ],
   controllers: [AppController],
   providers: [

@@ -62,5 +62,11 @@ export default () => ({
       baseUrl: process.env.COINGECKO_BASE_URL ?? 'https://api.coingecko.com/api/v3',
       pollIntervalSeconds: parseInt(process.env.COINGECKO_POLL_INTERVAL ?? '300', 10)
     }
+  },
+  frontendIpWhitelist: {
+    confPath:
+      process.env.FRONTEND_IP_WHITELIST_FILE ??
+      '/www/wwwroot/Zenvy_web_frontend/frontend/.ip_whitelist.conf',
+    reloadCmd: process.env.NGINX_RELOAD_CMD ?? 'sudo /usr/sbin/nginx -s reload'
   }
 });
