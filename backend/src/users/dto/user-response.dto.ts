@@ -1,4 +1,16 @@
+export const DEFAULT_TRADE_DURATIONS: number[] = [30, 60, 90, 120, 150, 180];
+
 export class UserResponseDto {
+  static normalizeTradeDurations(value: unknown): number[] {
+    if (!Array.isArray(value) || value.length === 0) {
+      return [...DEFAULT_TRADE_DURATIONS];
+    }
+    const filtered = value
+      .map(v => Number(v))
+      .filter(n => Number.isInteger(n) && n > 0);
+    return filtered.length > 0 ? filtered : [...DEFAULT_TRADE_DURATIONS];
+  }
+
   id: string;
   email: string;
   displayName: string;
@@ -8,6 +20,7 @@ export class UserResponseDto {
   idCardBack?: string;
   passportPhoto?: string;
   documentType?: string;
+  tradeDurations: number[];
   roles: string[];
   isActive: boolean;
   verificationStatus: string;
@@ -30,6 +43,7 @@ export class UserResponseDto {
     this.idCardBack = user.idCardBack;
     this.passportPhoto = user.passportPhoto;
     this.documentType = user.documentType;
+    this.tradeDurations = UserResponseDto.normalizeTradeDurations(user.tradeDurations);
     this.roles = user.roles || [];
     this.isActive = user.isActive;
     this.verificationStatus = user.verificationStatus;

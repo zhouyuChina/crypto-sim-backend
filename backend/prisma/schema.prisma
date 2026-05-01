@@ -43,6 +43,7 @@ model User {
   idCardBack         String? // 身份证反面照片 URL
   passportPhoto      String? // 护照照片 URL
   documentType       String? // 当前提交的证件类型：id_card | passport
+  tradeDurations     Json?   // 可选交易秒数，null 时使用默认 [30,60,90,120,150,180]
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   accountBalance     Decimal            @default(10000) @db.Decimal(18, 8)

@@ -10,6 +10,7 @@ import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 import { AdjustBalanceDto } from './dto/adjust-balance.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateTradeDurationsDto } from './dto/update-trade-durations.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('admin/users')
@@ -91,5 +92,14 @@ export class UsersController {
     @Body() resetPasswordDto: ResetPasswordDto,
   ): Promise<UserResponseDto> {
     return this.usersService.resetPassword(id, resetPasswordDto.newPassword);
+  }
+
+  @Patch(':id/trade-durations')
+  @Roles('admin')
+  async updateTradeDurations(
+    @Param('id') id: string,
+    @Body() dto: UpdateTradeDurationsDto,
+  ): Promise<UserResponseDto> {
+    return this.usersService.updateTradeDurations(id, dto.tradeDurations);
   }
 }

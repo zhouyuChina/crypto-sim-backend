@@ -72,6 +72,7 @@ export class UsersService {
         idCardBack: true,
           passportPhoto: true,
           documentType: true,
+          tradeDurations: true,
         roles: true,
         isActive: true,
         verificationStatus: true,
@@ -154,6 +155,7 @@ export class UsersService {
           idCardBack: true,
           passportPhoto: true,
           documentType: true,
+          tradeDurations: true,
           roles: true,
           isActive: true,
           verificationStatus: true,
@@ -187,6 +189,7 @@ export class UsersService {
         idCardBack: true,
           passportPhoto: true,
           documentType: true,
+          tradeDurations: true,
         roles: true,
         isActive: true,
         verificationStatus: true,
@@ -245,6 +248,7 @@ export class UsersService {
         idCardBack: true,
           passportPhoto: true,
           documentType: true,
+          tradeDurations: true,
         roles: true,
         isActive: true,
         verificationStatus: true,
@@ -285,6 +289,7 @@ export class UsersService {
         idCardBack: true,
           passportPhoto: true,
           documentType: true,
+          tradeDurations: true,
         roles: true,
         isActive: true,
         verificationStatus: true,
@@ -325,6 +330,7 @@ export class UsersService {
         idCardBack: true,
           passportPhoto: true,
           documentType: true,
+          tradeDurations: true,
         roles: true,
         isActive: true,
         verificationStatus: true,
@@ -365,6 +371,7 @@ export class UsersService {
         idCardBack: true,
           passportPhoto: true,
           documentType: true,
+          tradeDurations: true,
         roles: true,
         isActive: true,
         verificationStatus: true,
@@ -433,6 +440,7 @@ export class UsersService {
         idCardBack: true,
           passportPhoto: true,
           documentType: true,
+          tradeDurations: true,
         roles: true,
         isActive: true,
         verificationStatus: true,
@@ -493,6 +501,7 @@ export class UsersService {
         idCardBack: true,
           passportPhoto: true,
           documentType: true,
+          tradeDurations: true,
         roles: true,
         isActive: true,
         verificationStatus: true,
@@ -509,6 +518,47 @@ export class UsersService {
     });
 
     this.logger.log(`管理员重置用户 ${id} 的密码`);
+
+    return new UserResponseDto(updatedUser);
+  }
+
+  async updateTradeDurations(id: string, durations: number[]): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { tradeDurations: durations },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        phoneNumber: true,
+        avatar: true,
+        idCardFront: true,
+        idCardBack: true,
+        passportPhoto: true,
+        documentType: true,
+        tradeDurations: true,
+        roles: true,
+        isActive: true,
+        verificationStatus: true,
+        lastLoginAt: true,
+        lastLoginIp: true,
+        createdAt: true,
+        updatedAt: true,
+        demoBalance: true,
+        realBalance: true,
+        totalProfitLoss: true,
+        totalTrades: true,
+        winRate: true,
+      },
+    });
+
+    this.logger.log(`管理员更新用户 ${id} 的可选交易秒数: ${durations.join(',')}`);
 
     return new UserResponseDto(updatedUser);
   }
