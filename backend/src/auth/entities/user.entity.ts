@@ -14,6 +14,7 @@ export interface UserEntity {
   idCardBack?: string | null;   // 身份证反面照片 URL
   passportPhoto?: string | null; // 护照照片 URL
   documentType?: string | null;  // 当前提交的证件类型：id_card | passport
+  tradeDurations: number[];      // 可选交易秒数（已规范化为默认值兜底）
   createdAt: Date;
   updatedAt: Date;
 

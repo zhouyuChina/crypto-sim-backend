@@ -18,6 +18,7 @@ import type { UpdateProfileDto } from './dto/update-profile.dto';
 import type { UserEntity } from './entities/user.entity';
 import type { Role } from '../common/decorators/roles.decorator';
 import { generateUniqueUserId } from '../common/utils/user-id.generator';
+import { UserResponseDto } from '../users/dto/user-response.dto';
 
 export interface AuthTokens {
   accessToken: string;
@@ -177,6 +178,7 @@ export class AuthService {
       idCardBack: safeUser.idCardBack ?? null,
       passportPhoto: safeUser.passportPhoto ?? null,
       documentType: safeUser.documentType ?? null,
+      tradeDurations: UserResponseDto.normalizeTradeDurations((safeUser as any).tradeDurations),
     } as UserEntity;
   }
 

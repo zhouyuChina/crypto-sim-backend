@@ -7,6 +7,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { UserEntity } from '../entities/user.entity';
 import type { Role } from '../../common/decorators/roles.decorator';
+import { UserResponseDto } from '../../users/dto/user-response.dto';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -51,6 +52,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         winRate: 0,
         totalTrades: 0,
         verificationStatus: 'VERIFIED' as const,
+        tradeDurations: UserResponseDto.normalizeTradeDurations(null),
       };
     }
 
@@ -82,6 +84,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       winRate: Number(safeUser.winRate),
       totalTrades: safeUser.totalTrades,
       verificationStatus: safeUser.verificationStatus,
+      tradeDurations: UserResponseDto.normalizeTradeDurations((safeUser as any).tradeDurations),
     };
   }
 

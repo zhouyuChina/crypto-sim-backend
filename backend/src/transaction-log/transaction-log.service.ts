@@ -20,6 +20,7 @@ import { SettingsService } from '../settings/settings.service';
 import { AdminTradingGateway } from '../admin-trading/admin-trading.gateway';
 import { QueueService } from '../queue/queue.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { UserResponseDto } from '../users/dto/user-response.dto';
 import { QueryTransactionsDto } from './dto/query-transactions.dto';
 import { AdminQueryTransactionsDto } from './dto/admin-query-transactions.dto';
 import { AdminCreateTransactionDto } from './dto/admin-create-transaction.dto';
@@ -123,6 +124,16 @@ export class TransactionLogService {
       if (user.verificationStatus !== 'VERIFIED') {
         throw new ForbiddenException(
           '您需要完成身份认证后才能进行真实交易。请先完成身份认证。',
+        );
+      }
+
+      // 校验交易时长是否在该用户允许的可选秒数列表中
+      const allowedDurations = UserResponseDto.normalizeTradeDurations(
+        (user as any).tradeDurations,
+      );
+      if (!allowedDurations.includes(dto.duration)) {
+        throw new BadRequestException(
+          `不允许的交易时长 ${dto.duration} 秒，可选: ${allowedDurations.join('/')}`,
         );
       }
     }
