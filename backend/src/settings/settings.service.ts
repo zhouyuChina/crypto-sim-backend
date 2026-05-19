@@ -20,6 +20,8 @@ import type {
   UpdateShareConfigDto,
   UpdateIpWhitelistDto,
   IpWhitelistConfig,
+  UpdateDepositNoticeDto,
+  DepositNoticeConfig,
 } from './dto/update-settings.dto';
 
 @Injectable()
@@ -334,6 +336,38 @@ export class SettingsService {
         ips: [],
         enabled: false,
         description: '',
+      };
+    }
+  }
+
+  /**
+   * 更新入金地址说明公告
+   */
+  async updateDepositNotice(dto: UpdateDepositNoticeDto): Promise<void> {
+    await this.updateSetting({
+      key: 'deposit.notice',
+      value: {
+        ...dto.config,
+        updatedAt: new Date().toISOString(),
+      },
+      description: '入金地址说明公告配置',
+    });
+
+    this.logger.log('入金地址说明公告已更新');
+  }
+
+  /**
+   * 获取入金地址说明公告
+   */
+  async getDepositNotice(): Promise<DepositNoticeConfig> {
+    try {
+      const setting = await this.getSetting('deposit.notice');
+      return setting.value as DepositNoticeConfig;
+    } catch {
+      return {
+        enabled: false,
+        title: '',
+        content: '',
       };
     }
   }

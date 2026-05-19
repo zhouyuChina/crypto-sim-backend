@@ -110,3 +110,16 @@ export class UpdateIpWhitelistDto {
   config!: IpWhitelistConfig;
 }
 
+// 入金地址说明公告
+export interface DepositNoticeConfig {
+  enabled: boolean;       // 是否启用公告展示
+  title?: string;         // 公告标题
+  content?: string;       // 公告正文（支持富文本/多行）
+  updatedAt?: string;     // 最后更新时间（可选，由后端写入）
+}
+
+export class UpdateDepositNoticeDto {
+  @IsObject()
+  config!: DepositNoticeConfig;
+}
+
