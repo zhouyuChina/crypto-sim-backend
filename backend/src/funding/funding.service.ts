@@ -9,6 +9,7 @@ import {
 
 import type { UserEntity } from '../auth/entities/user.entity';
 import { BusinessException } from '../common/exceptions/business.exception';
+import { DepositAddressService } from '../deposit-address/deposit-address.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { CreateDepositDto } from './dto/create-deposit.dto';
@@ -51,14 +52,19 @@ export class FundingService {
   private readonly minWithdrawAmount = 10;
   private readonly trx20AddressPattern = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly depositAddressService: DepositAddressService
+  ) {}
 
   async createDeposit(userId: string, dto: CreateDepositDto): Promise<FundingRecordResponseDto> {
     this.ensureValidAmount(dto.amount);
     this.ensureSupportedNetwork(dto.network);
+    this.ensureTrc20Address(dto.toAddress);
 
     const txHash = this.normalizeTxHash(dto.txHash);
     const remark = this.normalizeOptionalText(dto.remark);
+    const toAddress = dto.toAddress.trim();
 
     const existingRecord = await this.prisma.fundingRecord.findFirst({
       where: {
@@ -71,20 +77,59 @@ export class FundingService {
       throw new BusinessException(HttpStatus.CONFLICT, 'DUPLICATE_TX_HASH', '充值交易哈希已存在');
     }
 
+    // 校验地址必须存在于地址池且仍可用
+    const poolAddress = await this.depositAddressService.findByAddress(toAddress);
+    if (!poolAddress) {
+      throw new BusinessException(
+        HttpStatus.BAD_REQUEST,
+        'INVALID_DEPOSIT_ADDRESS',
+        '入金地址不存在，请重新获取'
+      );
+    }
+    if (!poolAddress.enabled || poolAddress.riskStatus === 'RISKY') {
+      throw new BusinessException(
+        HttpStatus.CONFLICT,
+        'DEPOSIT_ADDRESS_UNAVAILABLE',
+        '该入金地址当前不可用，请重新获取'
+      );
+    }
+
     try {
-      const record = await this.prisma.fundingRecord.create({
-        data: {
+      const record = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.fundingRecord.create({
+          data: {
+            userId,
+            type: FundingType.DEPOSIT,
+            status: FundingStatus.PENDING,
+            amount: new Prisma.Decimal(dto.amount),
+            network: FundingNetwork.TRC20,
+            txHash,
+            toAddress,
+            remark
+          }
+        });
+
+        // 必须有未过期的占位锁，否则报错让用户重新获取地址
+        const consumed = await this.depositAddressService.consumeAllocation(
+          tx,
           userId,
-          type: FundingType.DEPOSIT,
-          status: FundingStatus.PENDING,
-          amount: new Prisma.Decimal(dto.amount),
-          network: FundingNetwork.TRC20,
-          txHash,
-          remark
+          toAddress,
+          dto.amount
+        );
+        if (!consumed) {
+          throw new BusinessException(
+            HttpStatus.CONFLICT,
+            'DEPOSIT_ALLOCATION_EXPIRED',
+            '入金地址已过期或未获取，请重新获取后再提交'
+          );
         }
+
+        return created;
       });
 
-      this.logger.log(`Funding deposit request created: userId=${userId}, recordId=${record.id}`);
+      this.logger.log(
+        `Funding deposit request created: userId=${userId}, recordId=${record.id}, toAddress=${toAddress}`
+      );
 
       return new FundingRecordResponseDto(record);
     } catch (error) {
@@ -442,6 +487,15 @@ export class FundingService {
           operatorId: reviewerId
         }
       });
+    }
+
+    if (normalizedType === FundingType.DEPOSIT) {
+      await this.depositAddressService.applyReviewOutcome(
+        tx,
+        record.toAddress,
+        amount,
+        action
+      );
     }
 
     const reviewedRecord = await tx.fundingRecord.findUnique({

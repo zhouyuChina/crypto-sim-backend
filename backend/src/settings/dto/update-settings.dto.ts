@@ -98,17 +98,6 @@ export class UpdateShareConfigDto {
   config!: ShareConfig;
 }
 
-// 入金地址设置
-export interface DepositAddressConfig {
-  address: string;       // 入金地址（字符串）
-  qrCodeUrl: string;     // 二维码图片 URL
-}
-
-export class UpdateDepositAddressDto {
-  @IsObject()
-  config!: DepositAddressConfig;
-}
-
 // IP 白名单设置
 export interface IpWhitelistConfig {
   ips: string[];         // IP 地址列表（支持单个 IP 或 CIDR 格式，如 "192.168.1.1" 或 "192.168.1.0/24"）

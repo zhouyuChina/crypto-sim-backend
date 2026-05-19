@@ -43,7 +43,7 @@ model User {
   idCardBack         String? // 身份证反面照片 URL
   passportPhoto      String? // 护照照片 URL
   documentType       String? // 当前提交的证件类型：id_card | passport
-  tradeDurations     Json?   // 可选交易秒数，null 时使用默认 [30,60,90,120,150,180]
+  tradeDurations     Json? // 可选交易秒数，null 时使用默认 [30,60,90,120,150,180]
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   accountBalance     Decimal            @default(10000) @db.Decimal(18, 8)
@@ -52,7 +52,7 @@ model User {
   verificationStatus VerificationStatus @default(PENDING)
   winRate            Decimal            @default(0) @db.Decimal(5, 2)
   demoBalance        Decimal            @default(10000) @db.Decimal(18, 8)
-  phoneNumber        String?            // 手机号可选，不唯一
+  phoneNumber        String? // 手机号可选，不唯一
   realBalance        Decimal            @default(0) @db.Decimal(18, 8)
   isCustomMember     Boolean            @default(false) // 是否为自定义会员（后台创建）
   createdBy          String? // 创建者（管理员ID），仅自定义会员有值
@@ -129,40 +129,40 @@ model MarketSnapshot {
 // 交易流水表 - 记录二元期权交易的完整流水信息（核心业务表）
 // 包含开仓时间、到期时间、投入金额、盈亏等完整交易信息
 model TransactionLog {
-  id               String            @id @default(uuid())
-  userId           String
-  userName         String? // 用户名（冗余字段，方便查询）
-  orderNumber      String            @unique
-  assetType        String
-  direction        TradeDirection
-  entryTime        DateTime
-  expiryTime       DateTime
-  duration         Int
-  entryPrice       Decimal           @db.Decimal(18, 8)
-  currentPrice     Decimal?          @db.Decimal(18, 8)
-  exitPrice        Decimal?          @db.Decimal(18, 8)
-  spread           Decimal           @db.Decimal(18, 8)
-  investAmount     Decimal           @db.Decimal(18, 8)
-  entryAccountBalance Decimal?       @db.Decimal(18, 8)
-  returnRate       Decimal           @db.Decimal(7, 4)
-  actualReturn     Decimal           @db.Decimal(18, 8)
-  settledAccountBalance Decimal?     @db.Decimal(18, 8)
-  status           TransactionStatus @default(PENDING)
-  manualAdjusted   Boolean           @default(false) // 是否被后台人工干预
-  manualAdjustedById   String?
-  manualAdjustedByName String?
+  id                     String            @id @default(uuid())
+  userId                 String
+  userName               String? // 用户名（冗余字段，方便查询）
+  orderNumber            String            @unique
+  assetType              String
+  direction              TradeDirection
+  entryTime              DateTime
+  expiryTime             DateTime
+  duration               Int
+  entryPrice             Decimal           @db.Decimal(18, 8)
+  currentPrice           Decimal?          @db.Decimal(18, 8)
+  exitPrice              Decimal?          @db.Decimal(18, 8)
+  spread                 Decimal           @db.Decimal(18, 8)
+  investAmount           Decimal           @db.Decimal(18, 8)
+  entryAccountBalance    Decimal?          @db.Decimal(18, 8)
+  returnRate             Decimal           @db.Decimal(7, 4)
+  actualReturn           Decimal           @db.Decimal(18, 8)
+  settledAccountBalance  Decimal?          @db.Decimal(18, 8)
+  status                 TransactionStatus @default(PENDING)
+  manualAdjusted         Boolean           @default(false) // 是否被后台人工干预
+  manualAdjustedById     String?
+  manualAdjustedByName   String?
   manualAdjustmentReason String?
-  manualAdjustedAt DateTime?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  settledAt        DateTime?
-  accountType      AccountType       @default(DEMO)
-  isManaged        Boolean           @default(false) // 是否在托管状态下产生的交易
-  tradingCycleId   String? // 关联的交易周期ID（托管模式）
-  marketSessionId  String? // 关联的大盘ID
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tradingCycle     TradingCycle?     @relation(fields: [tradingCycleId], references: [id], onDelete: SetNull)
-  marketSession    MarketSession?    @relation(fields: [marketSessionId], references: [id], onDelete: SetNull)
+  manualAdjustedAt       DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  settledAt              DateTime?
+  accountType            AccountType       @default(DEMO)
+  isManaged              Boolean           @default(false) // 是否在托管状态下产生的交易
+  tradingCycleId         String? // 关联的交易周期ID（托管模式）
+  marketSessionId        String? // 关联的大盘ID
+  user                   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tradingCycle           TradingCycle?     @relation(fields: [tradingCycleId], references: [id], onDelete: SetNull)
+  marketSession          MarketSession?    @relation(fields: [marketSessionId], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
   @@index([userId, accountType])
@@ -239,7 +239,7 @@ model FundingRecord {
   network           FundingNetwork @default(TRC20)
   txHash            String?
   toAddress         String?
-  editedToAddress   String?        // 管理员修改后的提领地址（仅 WITHDRAW 使用，保留原 toAddress 以便审计）
+  editedToAddress   String? // 管理员修改后的提领地址（仅 WITHDRAW 使用，保留原 toAddress 以便审计）
   remark            String?        @db.Text
   reviewNote        String?        @db.Text
   reviewedAt        DateTime?
@@ -277,17 +277,17 @@ model BalanceLedger {
 
 // CMS 公共法务文案表
 model PublicLegalContent {
-  id               String   @id @default(uuid())
-  locale           String   @unique
+  id               String    @id @default(uuid())
+  locale           String    @unique
   homeAntiScam     Json
   tutorialSectionE Json
-  version          Int      @default(1)
-  isPublished      Boolean  @default(false)
+  version          Int       @default(1)
+  isPublished      Boolean   @default(false)
   publishedAt      DateTime?
   createdBy        String?
   updatedBy        String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([locale, isPublished])
 }
@@ -353,6 +353,52 @@ enum FundingStatus {
 
 enum FundingNetwork {
   TRC20
+}
+
+enum DepositAddressRisk {
+  UNKNOWN
+  SAFE
+  RISKY
+}
+
+// 入金地址池
+model DepositAddress {
+  id              String             @id @default(uuid())
+  address         String             @unique
+  qrCodeUrl       String
+  minAmount       Decimal            @db.Decimal(18, 8)
+  maxAmount       Decimal?           @db.Decimal(18, 8) // null 表示无上限
+  capacity        Decimal?           @db.Decimal(18, 8) // null 表示可收余额无上限
+  usedAmount      Decimal            @default(0) @db.Decimal(18, 8) // 已审核通过累加
+  pendingAmount   Decimal            @default(0) @db.Decimal(18, 8) // 审核中 + 占位锁累加
+  enabled         Boolean            @default(true)
+  riskStatus      DepositAddressRisk @default(UNKNOWN)
+  lastRiskCheckAt DateTime?
+  sortOrder       Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  allocations DepositAllocation[]
+
+  @@index([enabled, riskStatus])
+  @@index([minAmount, maxAmount])
+}
+
+// 入金地址占位锁（拿地址后到提交 txHash 之间的 pending 占用，30 分钟过期）
+model DepositAllocation {
+  id        String   @id @default(uuid())
+  addressId String
+  userId    String
+  amount    Decimal  @db.Decimal(18, 8)
+  expiresAt DateTime
+  consumed  Boolean  @default(false) // true = 已被 FundingRecord 消费，pending 不再回退
+  createdAt DateTime @default(now())
+
+  address DepositAddress @relation(fields: [addressId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt, consumed])
+  @@index([userId, createdAt])
+  @@index([addressId, consumed])
 }
 
 // 系统设置表
@@ -448,7 +494,7 @@ model MarketSession {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  transactions  TransactionLog[] // 关联的交易流水
+  transactions TransactionLog[] // 关联的交易流水
 
   @@index([status, startTime])
   @@index([createdAt])
@@ -542,14 +588,14 @@ enum MessageType {
 
 // 邮箱验证码表 - 用于邮箱验证、找回密码等场景
 model EmailVerification {
-  id        String                    @id @default(uuid())
+  id        String                @id @default(uuid())
   email     String // 邮箱地址
   code      String // 验证码（6位数字）
   type      EmailVerificationType // 验证类型
-  used      Boolean                   @default(false) // 是否已使用
-  attempts  Int                       @default(0) // 验证尝试次数
+  used      Boolean               @default(false) // 是否已使用
+  attempts  Int                   @default(0) // 验证尝试次数
   expiresAt DateTime // 过期时间（默认10分钟）
-  createdAt DateTime                  @default(now())
+  createdAt DateTime              @default(now())
 
   @@index([email, type])
   @@index([code])

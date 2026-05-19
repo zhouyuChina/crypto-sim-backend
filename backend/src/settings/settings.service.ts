@@ -18,7 +18,6 @@ import type {
   UpdateCustomerServiceDto,
   UpdateLatencyDto,
   UpdateShareConfigDto,
-  UpdateDepositAddressDto,
   UpdateIpWhitelistDto,
   IpWhitelistConfig,
 } from './dto/update-settings.dto';
@@ -305,35 +304,6 @@ export class SettingsService {
       return {
         content: '',
         url: '',
-      };
-    }
-  }
-
-  /**
-   * 更新入金地址设置
-   */
-  async updateDepositAddress(dto: UpdateDepositAddressDto): Promise<void> {
-    await this.updateSetting({
-      key: 'deposit.address',
-      value: dto.config,
-      description: '入金地址配置',
-    });
-
-    this.logger.log('入金地址设置已更新');
-  }
-
-  /**
-   * 获取入金地址设置
-   */
-  async getDepositAddress() {
-    try {
-      const setting = await this.getSetting('deposit.address');
-      return setting.value;
-    } catch {
-      // 返回默认值
-      return {
-        address: '',
-        qrCodeUrl: '',
       };
     }
   }

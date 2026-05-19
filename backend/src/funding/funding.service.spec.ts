@@ -35,12 +35,23 @@ describe('FundingService', () => {
     return {
       prisma,
       tx,
-      service: new FundingService(prisma as any)
+      depositAddressService: {
+        findByAddress: jest.fn(),
+        consumeAllocation: jest.fn().mockResolvedValue(false),
+        applyReviewOutcome: jest.fn().mockResolvedValue(undefined)
+      },
+      service: undefined as unknown as FundingService
     };
   };
 
+  const buildService = () => {
+    const ctx = createService();
+    ctx.service = new FundingService(ctx.prisma as any, ctx.depositAddressService as any);
+    return ctx;
+  };
+
   it('rejects duplicate deposit tx hashes', async () => {
-    const { prisma, service } = createService();
+    const { prisma, service } = buildService();
 
     prisma.fundingRecord.findFirst.mockResolvedValue({ id: 'dep-1' });
 
@@ -49,6 +60,7 @@ describe('FundingService', () => {
         amount: 100.5,
         network: 'TRC20',
         txHash: 'duplicate-hash',
+        toAddress: 'TQx9LqS3K4qB4Jxj2m5v7u9n1p3r5t7y9z',
         remark: 'manual submit'
       })
     ).rejects.toMatchObject<Partial<BusinessException>>({
@@ -57,7 +69,7 @@ describe('FundingService', () => {
   });
 
   it('rejects withdraw requests from unverified users', async () => {
-    const { service } = createService();
+    const { service } = buildService();
 
     await expect(
       service.createWithdraw(
@@ -79,7 +91,7 @@ describe('FundingService', () => {
   });
 
   it('approves a deposit and applies real balance changes atomically', async () => {
-    const { service, tx } = createService();
+    const { service, tx } = buildService();
 
     tx.fundingRecord.findUnique
       .mockResolvedValueOnce({
@@ -169,7 +181,7 @@ describe('FundingService', () => {
   });
 
   it('rejects re-reviewing a completed funding record', async () => {
-    const { service, tx } = createService();
+    const { service, tx } = buildService();
 
     tx.fundingRecord.findUnique.mockResolvedValue({
       id: 'dep-1',

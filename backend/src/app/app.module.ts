@@ -36,6 +36,7 @@ import { SupportModule } from '../support/support.module';
 import { MarketSessionModule } from '../market-session/market-session.module';
 import { FundingModule } from '../funding/funding.module';
 import { FrontendIpWhitelistModule } from '../frontend-ip-whitelist/frontend-ip-whitelist.module';
+import { DepositAddressModule } from '../deposit-address/deposit-address.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -139,6 +140,7 @@ import { AppService } from './app.service';
     EmailModule,
     FundingModule,
     FrontendIpWhitelistModule,
+    DepositAddressModule,
   ],
   controllers: [AppController],
   providers: [
