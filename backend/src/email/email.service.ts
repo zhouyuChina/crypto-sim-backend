@@ -116,6 +116,7 @@ export class EmailService {
         replyTo: input.email,
         subject: `[Zenvy 聯繫客服] ${input.subject}`,
         text: this.buildContactSupportText(input),
+        html: this.buildContactSupportHtml(input),
       });
     } catch (error) {
       const errorMessage = this.getErrorMessage(error);
@@ -188,6 +189,19 @@ export class EmailService {
     }
 
     return lines.join('\n');
+  }
+
+  private buildContactSupportHtml(input: ContactSupportInput): string {
+    return `<pre style="font-family: Arial, Helvetica, sans-serif; white-space: pre-wrap; line-height: 1.6;">${this.escapeHtml(this.buildContactSupportText(input))}</pre>`;
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   private maskEmail(email: string): string {
