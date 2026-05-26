@@ -91,7 +91,7 @@ export class EmailService {
   async sendContactSupportMessage(
     input: ContactSupportInput,
   ): Promise<{ message: string }> {
-    let recordId: string;
+    let recordId: string | null = null;
 
     try {
       const record = await this.prisma.contactSupportMessage.create({
@@ -108,7 +108,6 @@ export class EmailService {
     } catch (error) {
       const errorMessage = this.getErrorMessage(error);
       this.logger.error(`Failed to record contact support message: ${errorMessage}`);
-      throw new InternalServerErrorException('Failed to send email');
     }
 
     try {
@@ -122,40 +121,44 @@ export class EmailService {
       const errorMessage = this.getErrorMessage(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
 
-      try {
-        await this.prisma.contactSupportMessage.update({
-          where: { id: recordId },
-          data: {
-            status: ContactSupportStatus.FAILED,
-            errorMessage: errorMessage.slice(0, 1000),
-          },
-        });
-      } catch (updateError) {
-        this.logger.error(
-          `Failed to mark contact support message as failed: ${this.getErrorMessage(updateError)}`,
-        );
+      if (recordId) {
+        try {
+          await this.prisma.contactSupportMessage.update({
+            where: { id: recordId },
+            data: {
+              status: ContactSupportStatus.FAILED,
+              errorMessage: errorMessage.slice(0, 1000),
+            },
+          });
+        } catch (updateError) {
+          this.logger.error(
+            `Failed to mark contact support message as failed: ${this.getErrorMessage(updateError)}`,
+          );
+        }
       }
 
       this.logger.error(`Failed to send contact support email: ${errorMessage}`, errorStack);
       throw new InternalServerErrorException('Failed to send email');
     }
 
-    try {
-      await this.prisma.contactSupportMessage.update({
-        where: { id: recordId },
-        data: {
-          status: ContactSupportStatus.SENT,
-          sentAt: new Date(),
-        },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Contact support email was sent but status update failed: id=${recordId}, error=${this.getErrorMessage(error)}`,
-      );
+    if (recordId) {
+      try {
+        await this.prisma.contactSupportMessage.update({
+          where: { id: recordId },
+          data: {
+            status: ContactSupportStatus.SENT,
+            sentAt: new Date(),
+          },
+        });
+      } catch (error) {
+        this.logger.error(
+          `Contact support email was sent but status update failed: id=${recordId}, error=${this.getErrorMessage(error)}`,
+        );
+      }
     }
 
     this.logger.log(
-      `Contact support email sent: id=${recordId}, email=${this.maskEmail(input.email)}, subject=${input.subject.slice(0, 50)}`,
+      `Contact support email sent: id=${recordId ?? 'not-recorded'}, email=${this.maskEmail(input.email)}, subject=${input.subject.slice(0, 50)}`,
     );
 
     return {
