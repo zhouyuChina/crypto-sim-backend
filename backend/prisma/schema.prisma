@@ -556,10 +556,36 @@ model EmailVerification {
   @@index([expiresAt])
 }
 
+// 联系客服表单记录 - 用于排查访客提交与 SMTP 发送问题
+model ContactSupportMessage {
+  id           String               @id @default(uuid())
+  email        String
+  subject      String               @db.VarChar(200)
+  message      String               @db.Text
+  ipAddress    String?
+  userAgent    String?              @db.Text
+  status       ContactSupportStatus @default(PENDING)
+  errorMessage String?              @db.Text
+  sentAt       DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([email])
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
 // 邮箱验证类型枚举
 enum EmailVerificationType {
   REGISTER // 注册验证
   RESET_PASSWORD // 重置密码
   CHANGE_EMAIL // 修改邮箱
   SECURITY // 安全操作验证
+}
+
+// 联系客服邮件发送状态
+enum ContactSupportStatus {
+  PENDING
+  SENT
+  FAILED
 }
