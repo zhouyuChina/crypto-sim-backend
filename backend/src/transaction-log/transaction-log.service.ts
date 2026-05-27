@@ -45,6 +45,7 @@ export class TransactionLogService {
     private readonly prisma: PrismaService,
     private readonly marketDataService: MarketDataService,
     private readonly settingsService: SettingsService,
+    @Inject(forwardRef(() => AdminTradingGateway))
     private readonly adminTradingGateway: AdminTradingGateway,
     @Inject(forwardRef(() => QueueService))
     private readonly queueService: QueueService,
