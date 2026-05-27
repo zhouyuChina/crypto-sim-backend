@@ -231,6 +231,8 @@ export class SupportService {
     });
 
     this.logger.log(`对话 ${conversationId} 的消息已标记为已读 (${readerType})`);
+
+    this.sseService.pushMessageRead(conversationId, readerType);
   }
 
   /**

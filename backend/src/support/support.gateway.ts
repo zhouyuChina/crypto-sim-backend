@@ -104,10 +104,6 @@ export class SupportGateway implements OnGatewayConnection, OnGatewayDisconnect 
         metadata,
       );
 
-      // 广播消息到房间内所有人
-      const roomName = `support:conversation:${conversationId}`;
-      this.server.to(roomName).emit('support:message', message);
-
       this.logger.log(`消息已发送: ${message.id}`);
 
       return { success: true, message };
