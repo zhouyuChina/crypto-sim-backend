@@ -324,18 +324,14 @@ export class OperatorsService {
 
     const accountType = dto.accountType ?? 'DEMO';
 
-    // 查找当前活跃的大盘（真实仓需要关联大盘）
+    // 查找当前活跃的大盘（DEMO/REAL 均关联，用于结算时读取 initialResult）
     let marketSessionId: string | null = null;
-    if (accountType === 'REAL') {
-      const activeMarketSession = await this.prisma.marketSession.findFirst({
-        where: {
-          status: 'ACTIVE',
-        },
-        orderBy: { startTime: 'desc' },
-      });
-      if (activeMarketSession) {
-        marketSessionId = activeMarketSession.id;
-      }
+    const activeMarketSession = await this.prisma.marketSession.findFirst({
+      where: { status: 'ACTIVE' },
+      orderBy: { startTime: 'desc' },
+    });
+    if (activeMarketSession) {
+      marketSessionId = activeMarketSession.id;
     }
 
     const transaction = await this.prisma.transactionLog.create({

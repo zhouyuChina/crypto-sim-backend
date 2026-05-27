@@ -14,7 +14,7 @@ import { AdminTransactionLogController } from './admin-transaction-log.controlle
     PrismaModule,
     MarketDataModule,
     SettingsModule,
-    AdminTradingModule,
+    forwardRef(() => AdminTradingModule),
     forwardRef(() => QueueModule),
   ],
   controllers: [TransactionLogController, AdminTransactionLogController],

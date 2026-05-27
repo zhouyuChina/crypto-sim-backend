@@ -39,14 +39,15 @@ export class AdminTradingGateway implements OnGatewayConnection, OnGatewayDiscon
   /**
    * 订阅交易更新
    * trading:subscribe
+   * payload.accountType 可选：'DEMO' | 'REAL'，不传返回全部
    */
   @SubscribeMessage('trading:subscribe')
   async handleSubscribe(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { adminId: string },
+    @MessageBody() payload: { adminId: string; accountType?: 'DEMO' | 'REAL' },
   ) {
     try {
-      const { adminId } = payload;
+      const { adminId, accountType } = payload;
 
       // 添加到订阅集合
       this.subscribers.add(client.id);
@@ -54,21 +55,52 @@ export class AdminTradingGateway implements OnGatewayConnection, OnGatewayDiscon
       // 加入交易监控房间
       client.join('trading:monitor');
 
-      // 获取当前活跃交易列表
-      const activeTransactions = await this.adminTradingService.getActiveTransactions();
+      // 获取当前活跃交易列表（支持按账户类型过滤）
+      const activeTransactions = await this.adminTradingService.getActiveTransactions(accountType);
 
       // 发送当前状态
       client.emit('trading:initial-data', {
         transactions: activeTransactions,
+        accountType: accountType ?? null,
         timestamp: new Date(),
       });
 
-      this.logger.log(`管理员 ${adminId} 订阅交易监控，当前活跃交易: ${activeTransactions.length}`);
+      this.logger.log(
+        `管理员 ${adminId} 订阅交易监控，过滤: ${accountType ?? '全部'}，当前活跃交易: ${activeTransactions.length}`,
+      );
 
       return { success: true, count: activeTransactions.length };
     } catch (error: any) {
       this.logger.error(`订阅失败: ${error.message}`, error.stack);
       client.emit('trading:error', { message: '订阅失败' });
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 按账户类型重新拉取活跃交易（不需要重新订阅）
+   * trading:filter
+   * payload.accountType：'DEMO' | 'REAL' | null（null 表示全部）
+   */
+  @SubscribeMessage('trading:filter')
+  async handleFilter(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { accountType?: 'DEMO' | 'REAL' | null },
+  ) {
+    try {
+      const accountType = payload.accountType ?? undefined;
+      const activeTransactions = await this.adminTradingService.getActiveTransactions(accountType);
+
+      client.emit('trading:initial-data', {
+        transactions: activeTransactions,
+        accountType: accountType ?? null,
+        timestamp: new Date(),
+      });
+
+      return { success: true, count: activeTransactions.length };
+    } catch (error: any) {
+      this.logger.error(`过滤交易失败: ${error.message}`, error.stack);
+      client.emit('trading:error', { message: '过滤失败' });
       return { success: false, error: error.message };
     }
   }
@@ -163,6 +195,14 @@ export class AdminTradingGateway implements OnGatewayConnection, OnGatewayDiscon
    * 管理员强制结算
    * trading:force-settle
    */
+  /**
+   * 管理员强制结算
+   * trading:force-settle
+   *
+   * payload.result: 'WIN' | 'LOSE' —— 直接指定输赢（DEMO 单笔控制输用）
+   * payload.settlementPrice: 可选结算价（REAL 盘口用）
+   * 不传 result 时按各账户类型默认规则（DEMO+大盘 → 赢；REAL → 输）
+   */
   @SubscribeMessage('trading:force-settle')
   async handleForceSettle(
     @ConnectedSocket() client: Socket,
@@ -171,21 +211,25 @@ export class AdminTradingGateway implements OnGatewayConnection, OnGatewayDiscon
       transactionId: string;
       adminId: string;
       settlementPrice?: number;
+      result?: 'WIN' | 'LOSE';
     },
   ) {
     try {
-      const { transactionId, adminId, settlementPrice } = payload;
+      const { transactionId, adminId, settlementPrice, result } = payload;
 
       const settledTransaction = await this.adminTradingService.forceSettleTransaction(
         transactionId,
         adminId,
         settlementPrice,
+        result,
       );
 
-      // 广播更新
+      // 广播更新（settleTransactionBySystem 已发 trading:status-changed，这里再发 trading:transaction-updated 供前端刷新列表）
       this.broadcastTransactionUpdate(settledTransaction, 'force-settled');
 
-      this.logger.log(`交易 ${transactionId} 已被管理员 ${adminId} 强制结算`);
+      this.logger.log(
+        `交易 ${transactionId} 已被管理员 ${adminId} 强制结算${result ? `，指定结果: ${result}` : ''}`,
+      );
 
       return { success: true, transaction: settledTransaction };
     } catch (error: any) {
