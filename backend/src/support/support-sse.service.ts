@@ -1,25 +1,106 @@
-import { Injectable, Logger, MessageEvent } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  MessageEvent,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
+import type { Redis } from 'ioredis';
 import { Subject } from 'rxjs';
+
+import { RedisService } from '../redis/redis.service';
+
+const REDIS_SSE_CHANNEL = 'support:sse:messages';
 
 /**
  * SSE 消息推送服务
- * 用于替代 WebSocket 实现客服消息实时推送
+ * 进程内 RxJS Subject + 可选 Redis pub/sub（多实例部署时跨节点广播）
  */
 @Injectable()
-export class SupportSseService {
+export class SupportSseService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SupportSseService.name);
+  private readonly instanceId = randomUUID();
 
-  // 存储每个对话的消息流
-  // key: conversationId, value: Subject 用于推送消息
   private conversationStreams = new Map<string, Set<Subject<MessageEvent>>>();
+  private redisPub: Redis | null = null;
+  private redisSub: Redis | null = null;
+  private readonly redisEnabled: boolean;
 
-  /**
-   * 订阅对话消息
-   */
+  constructor(
+    private readonly configService: ConfigService,
+    @Optional() private readonly redisService?: RedisService,
+  ) {
+    this.redisEnabled = this.configService.get<boolean>('redis.enabled') ?? false;
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (!this.redisEnabled || !this.redisService) {
+      return;
+    }
+
+    try {
+      const db = this.configService.get<number>('redis.sessionDb');
+      this.redisPub = this.redisService.getClient(db);
+      this.redisSub = this.redisPub.duplicate();
+
+      await this.redisSub.subscribe(REDIS_SSE_CHANNEL);
+      this.redisSub.on('message', (_channel, payload) => {
+        try {
+          const { conversationId, event, origin } = JSON.parse(payload) as {
+            conversationId: string;
+            event: MessageEvent;
+            origin: string;
+          };
+
+          if (origin === this.instanceId) {
+            return;
+          }
+
+          this.deliverToLocalSubscribers(conversationId, event);
+        } catch (error) {
+          this.logger.error('解析 Redis SSE 消息失败', error);
+        }
+      });
+
+      this.logger.log('客服 SSE Redis pub/sub 已启用');
+    } catch (error) {
+      this.logger.warn('客服 SSE Redis pub/sub 初始化失败，仅使用进程内推送', error);
+      this.redisPub = null;
+      this.redisSub = null;
+    }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    // 通知所有活跃的 SSE 客户端连接即将关闭
+    this.conversationStreams.forEach((subjects) => {
+      subjects.forEach((subject) => {
+        try {
+          subject.complete();
+        } catch {
+          // 忽略已关闭的 subject
+        }
+      });
+    });
+    this.conversationStreams.clear();
+
+    if (this.redisSub) {
+      const sub = this.redisSub;
+      this.redisSub = null;
+      try {
+        await sub.unsubscribe(REDIS_SSE_CHANNEL);
+        sub.disconnect();
+      } catch {
+        sub.disconnect();
+      }
+    }
+  }
+
   subscribe(conversationId: string): Subject<MessageEvent> {
     const subject = new Subject<MessageEvent>();
 
-    // 获取或创建该对话的订阅者集合
     if (!this.conversationStreams.has(conversationId)) {
       this.conversationStreams.set(conversationId, new Set());
     }
@@ -33,157 +114,64 @@ export class SupportSseService {
     return subject;
   }
 
-  /**
-   * 取消订阅
-   */
-  unsubscribe(conversationId: string, subject: Subject<MessageEvent>) {
+  unsubscribe(conversationId: string, subject: Subject<MessageEvent>): void {
     const subscribers = this.conversationStreams.get(conversationId);
-    if (subscribers) {
-      subscribers.delete(subject);
-      this.logger.log(
-        `订阅者离开对话: ${conversationId}, 剩余订阅者数: ${subscribers.size}`,
-      );
-
-      // 如果没有订阅者了，清理该对话的流
-      if (subscribers.size === 0) {
-        this.conversationStreams.delete(conversationId);
-        this.logger.log(`对话 ${conversationId} 的所有订阅者已离开，清理资源`);
-      }
-    }
-  }
-
-  /**
-   * 推送新消息到对话的所有订阅者
-   */
-  pushMessage(conversationId: string, message: any) {
-    const subscribers = this.conversationStreams.get(conversationId);
-
-    if (!subscribers || subscribers.size === 0) {
-      this.logger.debug(`对话 ${conversationId} 没有订阅者，跳过推送`);
+    if (!subscribers) {
       return;
     }
 
-    const event: MessageEvent = {
+    subscribers.delete(subject);
+    this.logger.log(
+      `订阅者离开对话: ${conversationId}, 剩余订阅者数: ${subscribers.size}`,
+    );
+
+    if (subscribers.size === 0) {
+      this.conversationStreams.delete(conversationId);
+      this.logger.log(`对话 ${conversationId} 的所有订阅者已离开，清理资源`);
+    }
+  }
+
+  pushMessage(conversationId: string, message: any): void {
+    this.broadcastEvent(conversationId, {
       data: {
         type: 'new-message',
         message,
       },
-    };
-
-    let successCount = 0;
-    subscribers.forEach((subject) => {
-      try {
-        subject.next(event);
-        successCount++;
-      } catch (error) {
-        this.logger.error(`推送消息失败:`, error);
-      }
     });
-
-    this.logger.log(
-      `消息已推送到对话 ${conversationId}, 成功推送: ${successCount}/${subscribers.size}`,
-    );
   }
 
-  /**
-   * 推送消息已读通知
-   */
-  pushMessageRead(conversationId: string, readerType: 'user' | 'admin') {
-    const subscribers = this.conversationStreams.get(conversationId);
-
-    if (!subscribers || subscribers.size === 0) {
-      this.logger.debug(`对话 ${conversationId} 没有订阅者，跳过已读通知`);
-      return;
-    }
-
-    const event: MessageEvent = {
+  pushMessageRead(conversationId: string, readerType: 'user' | 'admin'): void {
+    this.broadcastEvent(conversationId, {
       data: {
         type: 'messages-read',
         conversationId,
         readerType,
         readAt: new Date(),
       },
-    };
-
-    subscribers.forEach((subject) => {
-      try {
-        subject.next(event);
-      } catch (error) {
-        this.logger.error(`推送已读通知失败:`, error);
-      }
     });
-
-    this.logger.log(`已读通知已推送到对话 ${conversationId}`);
   }
 
-  /**
-   * 推送对话状态变更
-   */
-  pushConversationStatus(conversationId: string, status: string) {
-    const subscribers = this.conversationStreams.get(conversationId);
-
-    if (!subscribers || subscribers.size === 0) {
-      this.logger.debug(`对话 ${conversationId} 没有订阅者，跳过状态推送`);
-      return;
-    }
-
-    const event: MessageEvent = {
+  pushConversationStatus(conversationId: string, status: string): void {
+    this.broadcastEvent(conversationId, {
       data: {
         type: 'conversation-status',
         conversationId,
         status,
       },
-    };
-
-    subscribers.forEach((subject) => {
-      try {
-        subject.next(event);
-      } catch (error) {
-        this.logger.error(`推送状态变更失败:`, error);
-      }
     });
-
-    this.logger.log(`状态变更已推送到对话 ${conversationId}: ${status}`);
   }
 
-  /**
-   * 推送消息撤回通知
-   */
-  pushMessageRecalled(conversationId: string, messageId: string) {
-    const subscribers = this.conversationStreams.get(conversationId);
-
-    if (!subscribers || subscribers.size === 0) {
-      this.logger.debug(`对话 ${conversationId} 没有订阅者，跳过撤回通知`);
-      return;
-    }
-
-    const event: MessageEvent = {
+  pushMessageRecalled(conversationId: string, messageId: string): void {
+    this.broadcastEvent(conversationId, {
       data: {
         type: 'message-recalled',
         conversationId,
         messageId,
         recalledAt: new Date(),
       },
-    };
-
-    let successCount = 0;
-    subscribers.forEach((subject) => {
-      try {
-        subject.next(event);
-        successCount++;
-      } catch (error) {
-        this.logger.error(`推送撤回通知失败:`, error);
-      }
     });
-
-    this.logger.log(
-      `撤回通知已推送到对话 ${conversationId}, 成功推送: ${successCount}/${subscribers.size}`,
-    );
   }
 
-  /**
-   * 获取订阅统计信息
-   */
   getStats() {
     const stats = {
       totalConversations: this.conversationStreams.size,
@@ -198,5 +186,60 @@ export class SupportSseService {
     });
 
     return stats;
+  }
+
+  private broadcastEvent(conversationId: string, event: MessageEvent): void {
+    this.deliverToLocalSubscribers(conversationId, event);
+
+    if (!this.redisPub) {
+      return;
+    }
+
+    this.redisPub
+      .publish(
+        REDIS_SSE_CHANNEL,
+        JSON.stringify({
+          conversationId,
+          event,
+          origin: this.instanceId,
+        }),
+      )
+      .catch((error) => {
+        this.logger.error(`Redis SSE 广播失败 (${conversationId})`, error);
+      });
+  }
+
+  private deliverToLocalSubscribers(conversationId: string, event: MessageEvent): void {
+    const subscribers = this.conversationStreams.get(conversationId);
+
+    if (!subscribers || subscribers.size === 0) {
+      this.logger.debug(`对话 ${conversationId} 没有本地订阅者，跳过推送`);
+      return;
+    }
+
+    let successCount = 0;
+    const deadSubjects: Subject<MessageEvent>[] = [];
+
+    subscribers.forEach((subject) => {
+      try {
+        subject.next(event);
+        successCount++;
+      } catch (error) {
+        this.logger.error(`推送消息失败，移除失效订阅者:`, error);
+        deadSubjects.push(subject);
+      }
+    });
+
+    // 移除推送失败的死 Subject，避免后续重复报错
+    deadSubjects.forEach((subject) => {
+      subscribers.delete(subject);
+    });
+    if (subscribers.size === 0) {
+      this.conversationStreams.delete(conversationId);
+    }
+
+    this.logger.log(
+      `消息已推送到对话 ${conversationId}, 成功推送: ${successCount}/${subscribers.size}`,
+    );
   }
 }

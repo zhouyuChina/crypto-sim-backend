@@ -16,7 +16,7 @@ import {
   MessageEvent,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Observable } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { SupportService } from './support.service';
 import { SupportSseService } from './support-sse.service';
@@ -153,31 +153,59 @@ export class SupportController {
     @CurrentUser() user: any,
     @Query('conversationId') conversationId?: string,
   ): Observable<MessageEvent> {
+    const SSE_KEEPALIVE_MS = 25_000;
+
     return new Observable((observer) => {
-      // 获取或创建对话
+      let subscription: Subscription | null = null;
+      let actualConversationId: string | null = null;
+      let subject: ReturnType<SupportSseService['subscribe']> | null = null;
+      let keepaliveInterval: ReturnType<typeof setInterval> | null = null;
+      let cancelled = false;
+
       (async () => {
         try {
-          let actualConversationId: string;
+          let resolvedConversationId: string;
 
           if (!conversationId) {
             const conversation = await this.supportService.getOrCreateUserConversation(
               user.id,
               user.displayName,
             );
-            actualConversationId = conversation.id;
+            resolvedConversationId = conversation.id;
           } else {
-            actualConversationId = conversationId;
+            const conversation = await this.supportService.prisma.chatConversation.findUnique({
+              where: { id: conversationId },
+            });
+
+            if (!conversation || conversation.userId !== user.id) {
+              observer.error(new ForbiddenException('无权访问此对话'));
+              return;
+            }
+
+            resolvedConversationId = conversationId;
           }
+
+          if (cancelled) {
+            return;
+          }
+
+          actualConversationId = resolvedConversationId;
 
           this.logger.log(
             `用户 ${user.id} 订阅对话 ${actualConversationId} 的 SSE 消息流`,
           );
 
-          // 订阅 SSE 消息流
-          const subject = this.sseService.subscribe(actualConversationId);
+          subject = this.sseService.subscribe(actualConversationId);
 
-          // 转发消息到客户端
-          const subscription = subject.subscribe({
+          if (cancelled) {
+            // 两种竞态：
+            // 1. teardown 在 subject 创建后才运行 → teardown 已清理，这里幂等再调一次无害
+            // 2. teardown 在 subject 创建前就运行 → teardown 里 subject 为 null 未清理，这里补救
+            this.sseService.unsubscribe(actualConversationId, subject);
+            return;
+          }
+
+          subscription = subject.subscribe({
             next: (event: MessageEvent) => observer.next(event),
             error: (err: any) => {
               this.logger.error(`SSE 推送错误: ${err.message}`);
@@ -186,7 +214,6 @@ export class SupportController {
             complete: () => observer.complete(),
           });
 
-          // 发送连接成功消息
           observer.next({
             data: {
               type: 'connected',
@@ -195,19 +222,37 @@ export class SupportController {
             },
           });
 
-          // 客户端断开时清理
-          return () => {
-            this.logger.log(
-              `用户 ${user.id} 断开对话 ${actualConversationId} 的 SSE 连接`,
-            );
-            subscription.unsubscribe();
-            this.sseService.unsubscribe(actualConversationId, subject);
-          };
+          keepaliveInterval = setInterval(() => {
+            if (!cancelled) {
+              observer.next({
+                data: { type: 'ping', timestamp: Date.now() },
+              });
+            }
+          }, SSE_KEEPALIVE_MS);
         } catch (error) {
           this.logger.error(`SSE 订阅失败: ${error}`);
-          observer.error(error);
+          if (!cancelled) {
+            observer.error(error);
+          }
         }
       })();
+
+      return () => {
+        cancelled = true;
+
+        if (keepaliveInterval) {
+          clearInterval(keepaliveInterval);
+        }
+
+        subscription?.unsubscribe();
+
+        if (actualConversationId && subject) {
+          this.logger.log(
+            `用户 ${user.id} 断开对话 ${actualConversationId} 的 SSE 连接`,
+          );
+          this.sseService.unsubscribe(actualConversationId, subject);
+        }
+      };
     });
   }
 }

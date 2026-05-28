@@ -1,6 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
+import { ContactSupportStatus } from '@prisma/client';
+
+import { PrismaService } from '../prisma/prisma.service';
+
+interface ContactSupportInput {
+  email: string;
+  subject: string;
+  message: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+const CONTACT_SUPPORT_RECIPIENT = 'zenvy.us.support@gmail.com';
 
 @Injectable()
 export class EmailService {
@@ -9,6 +22,7 @@ export class EmailService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -72,5 +86,133 @@ export class EmailService {
       this.logger.error(`Failed to send verification email: ${errorMessage}`, errorStack);
       throw new Error('Failed to send verification email, please try again later.');
     }
+  }
+
+  async sendContactSupportMessage(
+    input: ContactSupportInput,
+  ): Promise<{ message: string }> {
+    let recordId: string | null = null;
+
+    try {
+      const record = await this.prisma.contactSupportMessage.create({
+        data: {
+          email: input.email,
+          subject: input.subject,
+          message: input.message,
+          ipAddress: input.ipAddress,
+          userAgent: input.userAgent,
+        },
+        select: { id: true },
+      });
+      recordId = record.id;
+    } catch (error) {
+      const errorMessage = this.getErrorMessage(error);
+      this.logger.error(`Failed to record contact support message: ${errorMessage}`);
+    }
+
+    try {
+      await this.mailerService.sendMail({
+        to: CONTACT_SUPPORT_RECIPIENT,
+        replyTo: input.email,
+        subject: `[Zenvy 聯繫客服] ${input.subject}`,
+        text: this.buildContactSupportText(input),
+        html: this.buildContactSupportHtml(input),
+      });
+    } catch (error) {
+      const errorMessage = this.getErrorMessage(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      if (recordId) {
+        try {
+          await this.prisma.contactSupportMessage.update({
+            where: { id: recordId },
+            data: {
+              status: ContactSupportStatus.FAILED,
+              errorMessage: errorMessage.slice(0, 1000),
+            },
+          });
+        } catch (updateError) {
+          this.logger.error(
+            `Failed to mark contact support message as failed: ${this.getErrorMessage(updateError)}`,
+          );
+        }
+      }
+
+      this.logger.error(`Failed to send contact support email: ${errorMessage}`, errorStack);
+      throw new InternalServerErrorException('Failed to send email');
+    }
+
+    if (recordId) {
+      try {
+        await this.prisma.contactSupportMessage.update({
+          where: { id: recordId },
+          data: {
+            status: ContactSupportStatus.SENT,
+            sentAt: new Date(),
+          },
+        });
+      } catch (error) {
+        this.logger.error(
+          `Contact support email was sent but status update failed: id=${recordId}, error=${this.getErrorMessage(error)}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `Contact support email sent: id=${recordId ?? 'not-recorded'}, email=${this.maskEmail(input.email)}, subject=${input.subject.slice(0, 50)}`,
+    );
+
+    return {
+      message: 'Your message has been sent successfully.',
+    };
+  }
+
+  private buildContactSupportText(input: ContactSupportInput): string {
+    const lines = [
+      '使用者透過官網「聯繫客服」表單送出訊息。',
+      '',
+      `聯絡郵件：${input.email}`,
+      `主旨：${input.subject}`,
+      '',
+      '────────────────────────',
+      input.message,
+      '────────────────────────',
+      '',
+      `送出時間：${new Date().toISOString()}`,
+    ];
+
+    if (input.ipAddress) {
+      lines.push(`來源 IP：${input.ipAddress}`);
+    }
+    if (input.userAgent) {
+      lines.push(`User-Agent：${input.userAgent}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  private buildContactSupportHtml(input: ContactSupportInput): string {
+    return `<pre style="font-family: Arial, Helvetica, sans-serif; white-space: pre-wrap; line-height: 1.6;">${this.escapeHtml(this.buildContactSupportText(input))}</pre>`;
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private maskEmail(email: string): string {
+    const [name, domain] = email.split('@');
+    if (!name || !domain) {
+      return email;
+    }
+    return `${name.slice(0, 2)}***@${domain}`;
+  }
+
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
   }
 }

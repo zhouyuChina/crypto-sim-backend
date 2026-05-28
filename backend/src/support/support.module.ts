@@ -5,6 +5,7 @@ import { extname, join } from 'path';
 
 import { PrismaModule } from '../prisma/prisma.module';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { RedisModule } from '../redis/redis.module';
 
 import { SupportController } from './support.controller';
 import { SupportAdminController } from './support-admin.controller';
@@ -16,6 +17,7 @@ import { SupportSseService } from './support-sse.service';
   imports: [
     PrismaModule,
     RealtimeModule,
+    RedisModule,
     MulterModule.register({
       storage: diskStorage({
         destination: join(process.cwd(), 'uploads', 'support-images'),

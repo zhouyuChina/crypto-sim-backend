@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException, Inject, for
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminTradingSseService } from './admin-trading-sse.service';
+import { TransactionLogService } from '../transaction-log/transaction-log.service';
 
 @Injectable()
 export class AdminTradingService {
@@ -12,20 +13,24 @@ export class AdminTradingService {
     private readonly eventEmitter: EventEmitter2,
     @Inject(forwardRef(() => AdminTradingSseService))
     private readonly sseService: AdminTradingSseService,
+    @Inject(forwardRef(() => TransactionLogService))
+    private readonly transactionLogService: TransactionLogService,
   ) {}
 
   /**
    * 获取当前活跃交易列表（PENDING 状态）
+   * @param accountType 可选，过滤账户类型：'DEMO' | 'REAL'，不传则返回全部
    */
-  async getActiveTransactions() {
+  async getActiveTransactions(accountType?: 'DEMO' | 'REAL') {
     const transactions = await this.prisma.transactionLog.findMany({
       where: {
         status: 'PENDING',
+        ...(accountType ? { accountType } : {}),
       },
       orderBy: {
         createdAt: 'desc',
       },
-      take: 100, // 限制返回最近100条
+      take: 100,
       include: {
         user: {
           select: {
@@ -146,11 +151,13 @@ export class AdminTradingService {
 
   /**
    * 管理员强制结算交易
+   * result: 'WIN' | 'LOSE' 直接指定输赢（DEMO 单笔控制用）；不传时按各账户类型默认规则
    */
   async forceSettleTransaction(
     transactionId: string,
     adminId: string,
     settlementPrice?: number,
+    result?: 'WIN' | 'LOSE',
   ) {
     const transaction = await this.prisma.transactionLog.findUnique({
       where: { id: transactionId },
@@ -164,42 +171,13 @@ export class AdminTradingService {
       throw new BadRequestException('交易已结算或已取消');
     }
 
-    const oldStatus = transaction.status;
-
-    // 强制结算
-    const updatedTransaction = await this.prisma.transactionLog.update({
-      where: { id: transactionId },
-      data: {
-        status: 'SETTLED',
-        settledAt: new Date(),
-        exitPrice: settlementPrice ? settlementPrice.toString() : transaction.currentPrice,
-        manualAdjusted: true,
-        manualAdjustedById: adminId,
-        manualAdjustedAt: new Date(),
-        manualAdjustmentReason: `管理员强制结算${settlementPrice ? ` - 结算价: ${settlementPrice}` : ''}`,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            displayName: true,
-            email: true,
-          },
-        },
-      },
+    // 路由到 TransactionLogService 进行完整结算（含余额更新、广播、日志）
+    return this.transactionLogService.forceSettleTransaction(transaction.orderNumber, {
+      exitPrice: settlementPrice,
+      result: result as 'WIN' | 'LOSE' | undefined,
+      operatorId: adminId,
+      reason: `管理员WebSocket强制结算${result ? ` - 指定结果: ${result}` : ''}`,
     });
-
-    // 发出事件通知
-    this.eventEmitter.emit('transaction.force-settled', {
-      transaction: updatedTransaction,
-      adminId,
-      settlementPrice,
-      oldStatus,
-    });
-
-    this.logger.log(`交易 ${transactionId} 已被管理员 ${adminId} 强制结算`);
-
-    return updatedTransaction;
   }
 
   /**

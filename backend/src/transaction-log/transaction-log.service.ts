@@ -45,6 +45,7 @@ export class TransactionLogService {
     private readonly prisma: PrismaService,
     private readonly marketDataService: MarketDataService,
     private readonly settingsService: SettingsService,
+    @Inject(forwardRef(() => AdminTradingGateway))
     private readonly adminTradingGateway: AdminTradingGateway,
     @Inject(forwardRef(() => QueueService))
     private readonly queueService: QueueService,
@@ -161,19 +162,14 @@ export class TransactionLogService {
       isManaged = false;
     }
 
-    // 查找当前活跃的大盘（真实仓需要关联大盘）
+    // 查找当前活跃的大盘（DEMO/REAL 均关联，用于结算时读取 initialResult）
     let marketSessionId: string | null = null;
-    if (accountType === AccountType.REAL) {
-      const activeMarketSession = await this.prisma.marketSession.findFirst({
-        where: {
-          status: 'ACTIVE',
-        },
-        orderBy: { startTime: 'desc' },
-      });
-      if (activeMarketSession) {
-        marketSessionId = activeMarketSession.id;
-      }
-      // 如果没有活跃的大盘，marketSessionId 为 null，结算时会判输
+    const activeMarketSession = await this.prisma.marketSession.findFirst({
+      where: { status: 'ACTIVE' },
+      orderBy: { startTime: 'desc' },
+    });
+    if (activeMarketSession) {
+      marketSessionId = activeMarketSession.id;
     }
 
     // 创建交易记录
@@ -514,24 +510,30 @@ export class TransactionLogService {
         ? exitPrice
         : await this.getCurrentPrice(transaction.assetType);
 
-    // 判赢逻辑：
-    // 1) 管理员强制结果（forcedResult）优先
-    // 2) DEMO（模拟）账户按实际涨跌计算
-    // 3) REAL（真实）账户保留默认判输（由管理员通过 forcedResult / 大盘控制）
+    // 判赢逻辑优先级：
+    // 1) 管理员强制结果（forcedResult）最优先 —— 支持单笔控制赢/输
+    // 2) DEMO 且挂有大盘（marketSessionId 不为空）：开盘期间默认赢
+    // 3) DEMO 且无大盘：按实际涨跌计算
+    // 4) REAL：默认判输
     let isWin: boolean;
     if (options.forcedResult) {
       isWin = options.forcedResult === 'WIN';
       this.logger.log(`交易 ${orderNumber} 强制结算，结果: ${isWin ? '赢' : '输'}`);
     } else if (transaction.accountType === AccountType.DEMO) {
-      const entryPrice = Number(transaction.entryPrice);
-      if (transaction.direction === 'CALL') {
-        isWin = resolvedExitPrice > entryPrice;
+      if (transaction.marketSessionId) {
+        isWin = true;
+        this.logger.log(`交易 ${orderNumber} (DEMO) 开盘状态默认赢`);
       } else {
-        isWin = resolvedExitPrice < entryPrice;
+        const entryPrice = Number(transaction.entryPrice);
+        if (transaction.direction === 'CALL') {
+          isWin = resolvedExitPrice > entryPrice;
+        } else {
+          isWin = resolvedExitPrice < entryPrice;
+        }
+        this.logger.log(
+          `交易 ${orderNumber} (DEMO) 按涨跌结算: 入场=${entryPrice}, 出场=${resolvedExitPrice}, 方向=${transaction.direction}, 结果=${isWin ? '赢' : '输'}`,
+        );
       }
-      this.logger.log(
-        `交易 ${orderNumber} (DEMO) 按涨跌结算: 入场=${entryPrice}, 出场=${resolvedExitPrice}, 方向=${transaction.direction}, 结果=${isWin ? '赢' : '输'}`,
-      );
     } else {
       isWin = false;
       this.logger.log(`交易 ${orderNumber} (REAL) 自动结算，默认判输`);
@@ -872,16 +874,14 @@ export class TransactionLogService {
       isManaged = false;
     }
 
-    // 查找当前活跃的大盘（真实仓需要关联大盘）
+    // 查找当前活跃的大盘（DEMO/REAL 均关联，用于结算时读取 initialResult）
     let marketSessionId: string | null = null;
-    if (accountType === AccountType.REAL) {
-      const activeMarketSession = await this.prisma.marketSession.findFirst({
-        where: { status: 'ACTIVE' },
-        orderBy: { startTime: 'desc' },
-      });
-      if (activeMarketSession) {
-        marketSessionId = activeMarketSession.id;
-      }
+    const activeMarketSessionForAdmin = await this.prisma.marketSession.findFirst({
+      where: { status: 'ACTIVE' },
+      orderBy: { startTime: 'desc' },
+    });
+    if (activeMarketSessionForAdmin) {
+      marketSessionId = activeMarketSessionForAdmin.id;
     }
 
     // 确定交易状态
