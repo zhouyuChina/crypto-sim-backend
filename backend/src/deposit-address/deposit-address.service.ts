@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   DepositAddress,
   DepositAddressRisk,
+  FundingNetwork,
   FundingType,
   Prisma,
 } from '@prisma/client';
@@ -16,6 +17,11 @@ import {
 import { DepositAddressResponseDto } from './dto/deposit-address-response.dto';
 
 const ALLOCATION_TTL_MS = 30 * 60 * 1000; // 30 分钟
+const ADDRESS_PATTERNS: Record<FundingNetwork, RegExp> = {
+  [FundingNetwork.TRC20]: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
+  [FundingNetwork.ERC20]: /^0x[a-fA-F0-9]{40}$/,
+  [FundingNetwork.BTC]: /^(bc1[a-z0-9]{39,59}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/,
+};
 
 @Injectable()
 export class DepositAddressService {
@@ -33,11 +39,14 @@ export class DepositAddressService {
   }
 
   async create(dto: CreateDepositAddressDto): Promise<DepositAddressResponseDto> {
+    const network = dto.network ?? FundingNetwork.TRC20;
     this.validateRange(dto.minAmount, dto.maxAmount ?? null);
+    this.validateAddressForNetwork(dto.address, network);
 
     try {
       const created = await this.prisma.depositAddress.create({
         data: {
+          network,
           address: dto.address.trim(),
           qrCodeUrl: dto.qrCodeUrl,
           minAmount: new Prisma.Decimal(dto.minAmount),
@@ -141,13 +150,15 @@ export class DepositAddressService {
    */
   async allocateForUser(
     userId: string,
-    amount: number
-  ): Promise<{ address: string; qrCodeUrl: string; expiresAt: Date }> {
+    amount: number,
+    network: FundingNetwork = FundingNetwork.TRC20
+  ): Promise<{ network: FundingNetwork; address: string; qrCodeUrl: string; expiresAt: Date }> {
     const amountDecimal = new Prisma.Decimal(amount);
 
     return this.prisma.$transaction(async (tx) => {
       const candidates = await tx.depositAddress.findMany({
         where: {
+          network,
           enabled: true,
           riskStatus: { not: DepositAddressRisk.RISKY },
           minAmount: { lte: amountDecimal },
@@ -229,6 +240,7 @@ export class DepositAddressService {
       });
 
       return {
+        network: picked.network,
         address: picked.address,
         qrCodeUrl: picked.qrCodeUrl,
         expiresAt,
@@ -371,6 +383,17 @@ export class DepositAddressService {
         HttpStatus.BAD_REQUEST,
         'INVALID_DEPOSIT_RANGE',
         '入金区间上限必须大于等于下限'
+      );
+    }
+  }
+
+  private validateAddressForNetwork(address: string, network: FundingNetwork): void {
+    const pattern = ADDRESS_PATTERNS[network];
+    if (!pattern.test(address.trim())) {
+      throw new BusinessException(
+        HttpStatus.BAD_REQUEST,
+        'INVALID_DEPOSIT_ADDRESS',
+        `${network} 地址格式不正确`
       );
     }
   }

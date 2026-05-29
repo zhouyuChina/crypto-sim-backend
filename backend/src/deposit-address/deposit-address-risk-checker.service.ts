@@ -1,7 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DepositAddressRisk } from '@prisma/client';
+import { DepositAddressRisk, FundingNetwork } from '@prisma/client';
 import { firstValueFrom } from 'rxjs';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -30,11 +30,11 @@ export class DepositAddressRiskCheckerService {
   @Cron(CronExpression.EVERY_10_MINUTES, { name: 'deposit-address-risk-check' })
   async runScheduled(): Promise<void> {
     const addresses = await this.prisma.depositAddress.findMany({
-      where: { enabled: true },
-      select: { id: true, address: true },
+      where: { enabled: true, network: FundingNetwork.TRC20 },
+      select: { id: true, address: true, network: true },
     });
     for (const a of addresses) {
-      await this.checkOne(a.id, a.address).catch((err) => {
+      await this.checkOne(a.id, a.address, a.network).catch((err) => {
         this.logger.warn(
           `Risk check failed for ${a.address}: ${err instanceof Error ? err.message : String(err)}`
         );
@@ -56,7 +56,15 @@ export class DepositAddressRiskCheckerService {
   /**
    * 单条立即检测，返回最新风险状态。可被管理端手动触发。
    */
-  async checkOne(id: string, address: string): Promise<DepositAddressRisk> {
+  async checkOne(
+    id: string,
+    address: string,
+    network: FundingNetwork = FundingNetwork.TRC20
+  ): Promise<DepositAddressRisk> {
+    if (network !== FundingNetwork.TRC20) {
+      return DepositAddressRisk.UNKNOWN;
+    }
+
     const url = `${OKLINK_BASE}${address}`;
     let body = '';
     try {

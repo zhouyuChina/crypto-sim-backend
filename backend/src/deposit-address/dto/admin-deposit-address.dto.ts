@@ -1,19 +1,21 @@
 import { Type } from 'class-transformer';
+import { FundingNetwork } from '@prisma/client';
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
-  Matches,
   Min,
 } from 'class-validator';
 
-const TRC20_REGEX = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
-
 export class CreateDepositAddressDto {
+  @IsOptional()
+  @IsEnum(FundingNetwork)
+  network?: FundingNetwork;
+
   @IsString()
-  @Matches(TRC20_REGEX, { message: 'TRC20 地址格式不正确' })
   address!: string;
 
   @IsString()

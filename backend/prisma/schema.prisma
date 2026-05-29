@@ -356,6 +356,8 @@ enum FundingStatus {
 
 enum FundingNetwork {
   TRC20
+  ERC20
+  BTC
 }
 
 enum DepositAddressRisk {
@@ -367,6 +369,7 @@ enum DepositAddressRisk {
 // 入金地址池
 model DepositAddress {
   id              String             @id @default(uuid())
+  network         FundingNetwork     @default(TRC20)
   address         String             @unique
   qrCodeUrl       String
   minAmount       Decimal            @db.Decimal(18, 8)
@@ -383,7 +386,7 @@ model DepositAddress {
 
   allocations DepositAllocation[]
 
-  @@index([enabled, riskStatus])
+  @@index([network, enabled, riskStatus])
   @@index([minAmount, maxAmount])
 }
 

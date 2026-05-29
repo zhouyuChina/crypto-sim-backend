@@ -1,7 +1,8 @@
-import { DepositAddress, DepositAddressRisk, Prisma } from '@prisma/client';
+import { DepositAddress, DepositAddressRisk, FundingNetwork, Prisma } from '@prisma/client';
 
 export class DepositAddressResponseDto {
   id: string;
+  network: FundingNetwork;
   address: string;
   qrCodeUrl: string;
   minAmount: string;
@@ -19,6 +20,7 @@ export class DepositAddressResponseDto {
 
   constructor(record: DepositAddress) {
     this.id = record.id;
+    this.network = record.network;
     this.address = record.address;
     this.qrCodeUrl = record.qrCodeUrl;
     this.minAmount = record.minAmount.toString();

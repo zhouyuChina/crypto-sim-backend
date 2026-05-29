@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional, IsPositive, IsString, Matches } from 'class-validator';
+import { FundingNetwork } from '@prisma/client';
+import { IsEnum, IsIn, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
 
 export const SUPPORTED_CURRENCIES = ['BTC', 'ETH', 'USDC', 'USDT'] as const;
 export type DepositCurrency = (typeof SUPPORTED_CURRENCIES)[number];
@@ -23,13 +24,13 @@ export class CreateDepositDto {
   convertedAmount!: number;
 
   @IsString()
-  network!: string;
+  @IsEnum(FundingNetwork)
+  network!: FundingNetwork;
 
   @IsString()
   txHash!: string;
 
   @IsString()
-  @Matches(/^T[1-9A-HJ-NP-Za-km-z]{33}$/, { message: '入金地址格式错误' })
   toAddress!: string;
 
   @IsOptional()

@@ -34,6 +34,19 @@ const USER_FUNDING_STATUS_MAP = {
   failed: FundingStatus.FAILED
 } as const;
 
+const DEPOSIT_CURRENCY_NETWORK_MAP: Record<string, FundingNetwork> = {
+  BTC: FundingNetwork.BTC,
+  ETH: FundingNetwork.ERC20,
+  USDC: FundingNetwork.ERC20,
+  USDT: FundingNetwork.TRC20
+};
+
+const ADDRESS_PATTERNS: Record<FundingNetwork, RegExp> = {
+  [FundingNetwork.TRC20]: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
+  [FundingNetwork.ERC20]: /^0x[a-fA-F0-9]{40}$/,
+  [FundingNetwork.BTC]: /^(bc1[a-z0-9]{39,59}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/
+};
+
 type FundingRecordWithUser = Prisma.FundingRecordGetPayload<{
   include: {
     user: {
@@ -50,7 +63,6 @@ type FundingRecordWithUser = Prisma.FundingRecordGetPayload<{
 export class FundingService {
   private readonly logger = new Logger(FundingService.name);
   private readonly minWithdrawAmount = 10;
-  private readonly trx20AddressPattern = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -61,7 +73,8 @@ export class FundingService {
     this.ensureValidAmount(dto.convertedAmount);
     this.ensureValidAmount(dto.originalAmount);
     this.ensureSupportedNetwork(dto.network);
-    this.ensureTrc20Address(dto.toAddress);
+    this.ensureCurrencyNetworkMatch(dto.currency, dto.network);
+    this.ensureAddressForNetwork(dto.toAddress, dto.network);
 
     const txHash = this.normalizeTxHash(dto.txHash);
     const remark = this.normalizeOptionalText(dto.remark);
@@ -70,7 +83,7 @@ export class FundingService {
 
     const existingRecord = await this.prisma.fundingRecord.findFirst({
       where: {
-        network: FundingNetwork.TRC20,
+        network: dto.network,
         txHash
       }
     });
@@ -86,6 +99,13 @@ export class FundingService {
         HttpStatus.BAD_REQUEST,
         'INVALID_DEPOSIT_ADDRESS',
         '入金地址不存在，请重新获取'
+      );
+    }
+    if (poolAddress.network !== dto.network) {
+      throw new BusinessException(
+        HttpStatus.BAD_REQUEST,
+        'INVALID_DEPOSIT_ADDRESS',
+        '入金地址网络不匹配，请重新获取'
       );
     }
     if (!poolAddress.enabled || poolAddress.riskStatus === 'RISKY') {
@@ -108,7 +128,7 @@ export class FundingService {
             currency: dto.currency,
             originalAmount: new Prisma.Decimal(dto.originalAmount),
             convertedAmount,
-            network: FundingNetwork.TRC20,
+            network: dto.network,
             txHash,
             toAddress,
             remark
@@ -149,8 +169,8 @@ export class FundingService {
     dto: CreateWithdrawDto
   ): Promise<FundingRecordResponseDto> {
     this.ensureValidWithdrawAmount(dto.amount);
-    this.ensureSupportedNetwork(dto.network);
-    this.ensureTrc20Address(dto.toAddress);
+    this.ensureSupportedWithdrawNetwork(dto.network);
+    this.ensureAddressForNetwork(dto.toAddress, FundingNetwork.TRC20);
 
     if (user.verificationStatus !== 'VERIFIED') {
       throw new BusinessException(HttpStatus.FORBIDDEN, 'KYC_REQUIRED', '提领前需完成 KYC');
@@ -306,7 +326,7 @@ export class FundingService {
     reviewerId: string
   ): Promise<{ record: FundingRecordResponseDto }> {
     const nextAddress = dto.toAddress.trim();
-    this.ensureTrc20Address(nextAddress);
+    this.ensureAddressForNetwork(nextAddress, FundingNetwork.TRC20);
 
     const record = await this.prisma.fundingRecord.findUnique({
       where: { id },
@@ -542,14 +562,36 @@ export class FundingService {
   }
 
   private ensureSupportedNetwork(network: string): void {
+    if (!Object.values(FundingNetwork).includes(network as FundingNetwork)) {
+      throw new BusinessException(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', '不支持的入金网络');
+    }
+  }
+
+  private ensureSupportedWithdrawNetwork(network: string): void {
     if (network !== FundingNetwork.TRC20) {
       throw new BusinessException(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', '仅支持 TRC20 网络');
     }
   }
 
-  private ensureTrc20Address(address: string): void {
-    if (!this.trx20AddressPattern.test(address.trim())) {
-      throw new BusinessException(HttpStatus.BAD_REQUEST, 'INVALID_ADDRESS', '地址格式错误');
+  private ensureCurrencyNetworkMatch(currency: string, network: FundingNetwork): void {
+    const expectedNetwork = DEPOSIT_CURRENCY_NETWORK_MAP[currency];
+    if (!expectedNetwork || expectedNetwork !== network) {
+      throw new BusinessException(
+        HttpStatus.BAD_REQUEST,
+        'INVALID_CURRENCY_NETWORK',
+        '币种和入金网络不匹配'
+      );
+    }
+  }
+
+  private ensureAddressForNetwork(address: string, network: FundingNetwork): void {
+    const pattern = ADDRESS_PATTERNS[network];
+    if (!pattern.test(address.trim())) {
+      throw new BusinessException(
+        HttpStatus.BAD_REQUEST,
+        'INVALID_ADDRESS',
+        `${network} 地址格式错误`
+      );
     }
   }
 

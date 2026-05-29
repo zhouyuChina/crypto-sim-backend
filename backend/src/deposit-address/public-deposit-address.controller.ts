@@ -15,7 +15,7 @@ export class PublicDepositAddressController {
   /**
    * 客户端按金额请求一个入金地址。
    * POST /settings/deposit/address
-   * body: { amount: number }
+   * body: { amount: number, network?: 'TRC20' | 'ERC20' | 'BTC' }
    */
   @Post('address')
   @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
@@ -24,7 +24,7 @@ export class PublicDepositAddressController {
     @Body() dto: AllocateDepositAddressDto
   ) {
     return {
-      data: await this.depositAddressService.allocateForUser(user.id, dto.amount),
+      data: await this.depositAddressService.allocateForUser(user.id, dto.amount, dto.network),
     };
   }
 }

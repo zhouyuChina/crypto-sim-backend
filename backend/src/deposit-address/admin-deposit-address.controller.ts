@@ -41,7 +41,7 @@ export class AdminDepositAddressController {
   @Post(':id/risk-check')
   async riskCheck(@Param('id') id: string) {
     const record = await this.depositAddressService.getById(id);
-    const status = await this.riskChecker.checkOne(record.id, record.address);
+    const status = await this.riskChecker.checkOne(record.id, record.address, record.network);
     return { data: { riskStatus: status } };
   }
 }
