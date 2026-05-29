@@ -58,13 +58,15 @@ export class FundingService {
   ) {}
 
   async createDeposit(userId: string, dto: CreateDepositDto): Promise<FundingRecordResponseDto> {
-    this.ensureValidAmount(dto.amount);
+    this.ensureValidAmount(dto.convertedAmount);
+    this.ensureValidAmount(dto.originalAmount);
     this.ensureSupportedNetwork(dto.network);
     this.ensureTrc20Address(dto.toAddress);
 
     const txHash = this.normalizeTxHash(dto.txHash);
     const remark = this.normalizeOptionalText(dto.remark);
     const toAddress = dto.toAddress.trim();
+    const convertedAmount = new Prisma.Decimal(dto.convertedAmount);
 
     const existingRecord = await this.prisma.fundingRecord.findFirst({
       where: {
@@ -101,7 +103,11 @@ export class FundingService {
             userId,
             type: FundingType.DEPOSIT,
             status: FundingStatus.PENDING,
-            amount: new Prisma.Decimal(dto.amount),
+            // amount 保持等于 convertedAmount，供审核、余额入账、地址容量统计使用
+            amount: convertedAmount,
+            currency: dto.currency,
+            originalAmount: new Prisma.Decimal(dto.originalAmount),
+            convertedAmount,
             network: FundingNetwork.TRC20,
             txHash,
             toAddress,
@@ -109,12 +115,12 @@ export class FundingService {
           }
         });
 
-        // 必须有未过期的占位锁，否则报错让用户重新获取地址
+        // 占位锁按 convertedAmount 匹配（与拿地址时传的 amount 一致）
         const consumed = await this.depositAddressService.consumeAllocation(
           tx,
           userId,
           toAddress,
-          dto.amount
+          dto.convertedAmount
         );
         if (!consumed) {
           throw new BusinessException(
@@ -128,7 +134,8 @@ export class FundingService {
       });
 
       this.logger.log(
-        `Funding deposit request created: userId=${userId}, recordId=${record.id}, toAddress=${toAddress}`
+        `Funding deposit request created: userId=${userId}, recordId=${record.id}, ` +
+        `currency=${dto.currency}, originalAmount=${dto.originalAmount}, convertedAmount=${dto.convertedAmount}`
       );
 
       return new FundingRecordResponseDto(record);

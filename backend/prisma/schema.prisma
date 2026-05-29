@@ -244,6 +244,9 @@ model FundingRecord {
   reviewNote        String?        @db.Text
   reviewedAt        DateTime?
   reviewedBy        String?
+  currency          String?        @default("USDT") // 入金币种：BTC/ETH/USDC/USDT（旧记录默认 USDT）
+  originalAmount    Decimal?       @db.Decimal(18, 8) // 用户实际转入的原始币数量
+  convertedAmount   Decimal?       @db.Decimal(18, 8) // 前端换算后的美元金额
   balanceApplied    Boolean        @default(false)
   beforeRealBalance Decimal?       @db.Decimal(18, 8)
   afterRealBalance  Decimal?       @db.Decimal(18, 8)

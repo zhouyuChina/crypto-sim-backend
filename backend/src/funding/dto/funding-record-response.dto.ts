@@ -10,6 +10,9 @@ type FundingRecordLike = {
   type: string;
   status: string;
   amount: DecimalLike | number;
+  currency?: string | null;
+  originalAmount?: DecimalLike | number | null;
+  convertedAmount?: DecimalLike | number | null;
   network: FundingNetwork | string;
   txHash?: string | null;
   toAddress?: string | null;
@@ -42,6 +45,12 @@ export class FundingRecordResponseDto {
   userName?: string | null;
   type: 'deposit' | 'withdraw';
   amount: number;
+  /** 入金币种（旧记录兜底为 USDT） */
+  currency: string;
+  /** 用户原始转入数量（旧记录兜底等于 amount） */
+  originalAmount: number | null;
+  /** 换算后美元金额（旧记录兜底等于 amount） */
+  convertedAmount: number | null;
   status: 'pending' | 'completed' | 'failed';
   date: Date;
   network: string;
@@ -61,10 +70,16 @@ export class FundingRecordResponseDto {
 
   constructor(record: FundingRecordLike, includeUser = false) {
     const type = record.type.toLowerCase() as 'deposit' | 'withdraw';
+    const amount = Number(record.amount.toString());
 
     this.id = record.id;
     this.type = type;
-    this.amount = Number(record.amount.toString());
+    this.amount = amount;
+    // 旧记录没有 currency 字段时默认 USDT
+    this.currency = record.currency ?? 'USDT';
+    // 旧记录没有 originalAmount/convertedAmount 时用 amount 兜底
+    this.originalAmount = record.originalAmount != null ? toNumber(record.originalAmount) : amount;
+    this.convertedAmount = record.convertedAmount != null ? toNumber(record.convertedAmount) : amount;
     this.status = record.status.toLowerCase() as 'pending' | 'completed' | 'failed';
     this.date = record.createdAt;
     this.network = record.network;

@@ -57,7 +57,9 @@ describe('FundingService', () => {
 
     await expect(
       service.createDeposit('user-1', {
-        amount: 100.5,
+        currency: 'USDT',
+        originalAmount: 100.5,
+        convertedAmount: 100.5,
         network: 'TRC20',
         txHash: 'duplicate-hash',
         toAddress: 'TQx9LqS3K4qB4Jxj2m5v7u9n1p3r5t7y9z',
