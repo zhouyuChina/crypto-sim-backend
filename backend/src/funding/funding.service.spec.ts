@@ -81,7 +81,9 @@ describe('FundingService', () => {
           realBalance: 100
         } as any,
         {
-          amount: 50,
+          currency: 'USDT',
+          originalAmount: 50,
+          convertedAmount: 50,
           network: 'TRC20',
           toAddress: 'TQx9LqS3K4qB4Jxj2m5v7u9n1p3r5t7y9z',
           remark: 'cash out'

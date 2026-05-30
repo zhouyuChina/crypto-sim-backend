@@ -34,7 +34,7 @@ const USER_FUNDING_STATUS_MAP = {
   failed: FundingStatus.FAILED
 } as const;
 
-const DEPOSIT_CURRENCY_NETWORK_MAP: Record<string, FundingNetwork> = {
+const CURRENCY_NETWORK_MAP: Record<string, FundingNetwork> = {
   BTC: FundingNetwork.BTC,
   ETH: FundingNetwork.ERC20,
   USDC: FundingNetwork.ERC20,
@@ -168,15 +168,19 @@ export class FundingService {
     user: Pick<UserEntity, 'id' | 'verificationStatus' | 'realBalance'>,
     dto: CreateWithdrawDto
   ): Promise<FundingRecordResponseDto> {
-    this.ensureValidWithdrawAmount(dto.amount);
-    this.ensureSupportedWithdrawNetwork(dto.network);
-    this.ensureAddressForNetwork(dto.toAddress, FundingNetwork.TRC20);
+    this.ensureValidAmount(dto.convertedAmount);
+    this.ensureValidAmount(dto.originalAmount);
+    this.ensureSupportedNetwork(dto.network);
+    this.ensureCurrencyNetworkMatch(dto.currency, dto.network);
+    this.ensureAddressForNetwork(dto.toAddress, dto.network);
+    this.ensureValidWithdrawAmount(dto.convertedAmount);
 
     if (user.verificationStatus !== 'VERIFIED') {
       throw new BusinessException(HttpStatus.FORBIDDEN, 'KYC_REQUIRED', '提领前需完成 KYC');
     }
 
-    if (user.realBalance < dto.amount) {
+    const convertedAmount = new Prisma.Decimal(dto.convertedAmount);
+    if (new Prisma.Decimal(user.realBalance).lessThan(convertedAmount)) {
       throw new BusinessException(HttpStatus.CONFLICT, 'INSUFFICIENT_BALANCE', '可提余额不足');
     }
 
@@ -185,14 +189,20 @@ export class FundingService {
         userId: user.id,
         type: FundingType.WITHDRAW,
         status: FundingStatus.PENDING,
-        amount: new Prisma.Decimal(dto.amount),
-        network: FundingNetwork.TRC20,
+        amount: convertedAmount,
+        currency: dto.currency,
+        originalAmount: new Prisma.Decimal(dto.originalAmount),
+        convertedAmount,
+        network: dto.network,
         toAddress: dto.toAddress.trim(),
         remark: this.normalizeOptionalText(dto.remark)
       }
     });
 
-    this.logger.log(`Funding withdraw request created: userId=${user.id}, recordId=${record.id}`);
+    this.logger.log(
+      `Funding withdraw request created: userId=${user.id}, recordId=${record.id}, ` +
+      `currency=${dto.currency}, originalAmount=${dto.originalAmount}, convertedAmount=${dto.convertedAmount}`
+    );
 
     return new FundingRecordResponseDto(record);
   }
@@ -326,7 +336,6 @@ export class FundingService {
     reviewerId: string
   ): Promise<{ record: FundingRecordResponseDto }> {
     const nextAddress = dto.toAddress.trim();
-    this.ensureAddressForNetwork(nextAddress, FundingNetwork.TRC20);
 
     const record = await this.prisma.fundingRecord.findUnique({
       where: { id },
@@ -344,6 +353,9 @@ export class FundingService {
         '出入金记录不存在'
       );
     }
+
+    // 按记录实际网络校验新地址格式
+    this.ensureAddressForNetwork(nextAddress, record.network);
 
     if (record.type.toString().toUpperCase() !== FundingType.WITHDRAW) {
       throw new BusinessException(
@@ -563,23 +575,17 @@ export class FundingService {
 
   private ensureSupportedNetwork(network: string): void {
     if (!Object.values(FundingNetwork).includes(network as FundingNetwork)) {
-      throw new BusinessException(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', '不支持的入金网络');
-    }
-  }
-
-  private ensureSupportedWithdrawNetwork(network: string): void {
-    if (network !== FundingNetwork.TRC20) {
-      throw new BusinessException(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', '仅支持 TRC20 网络');
+      throw new BusinessException(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', '不支持的网络');
     }
   }
 
   private ensureCurrencyNetworkMatch(currency: string, network: FundingNetwork): void {
-    const expectedNetwork = DEPOSIT_CURRENCY_NETWORK_MAP[currency];
+    const expectedNetwork = CURRENCY_NETWORK_MAP[currency];
     if (!expectedNetwork || expectedNetwork !== network) {
       throw new BusinessException(
         HttpStatus.BAD_REQUEST,
         'INVALID_CURRENCY_NETWORK',
-        '币种和入金网络不匹配'
+        '币种和网络不匹配'
       );
     }
   }
