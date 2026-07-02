@@ -56,6 +56,7 @@ model User {
   realBalance        Decimal            @default(0) @db.Decimal(18, 8)
   isCustomMember     Boolean            @default(false) // 是否为自定义会员（后台创建）
   createdBy          String? // 创建者（管理员ID），仅自定义会员有值
+  adminRemark        String?            @db.Text // 管理员备注（仅后台可见）
   orders             Order[]
   sessions           Session[]
   transactionLogs    TransactionLog[]

@@ -32,6 +32,7 @@ export class UserResponseDto {
   totalProfitLoss: number;
   totalTrades: number;
   winRate: number;
+  adminRemark: string | null;
 
   constructor(user: any) {
     this.id = user.id;
@@ -55,6 +56,7 @@ export class UserResponseDto {
     this.totalProfitLoss = user.totalProfitLoss;
     this.totalTrades = user.totalTrades;
     this.winRate = user.winRate;
+    this.adminRemark = user.adminRemark ?? null;
   }
 }
 

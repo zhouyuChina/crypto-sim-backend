@@ -38,4 +38,8 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEnum(VerificationStatus)
   verificationStatus?: VerificationStatus;
+
+  @IsOptional()
+  @IsString()
+  adminRemark?: string;
 }

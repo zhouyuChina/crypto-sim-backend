@@ -85,6 +85,7 @@ export class UsersService {
         totalProfitLoss: true,
         totalTrades: true,
         winRate: true,
+        adminRemark: true,
       },
     });
 
@@ -202,6 +203,7 @@ export class UsersService {
         totalProfitLoss: true,
         totalTrades: true,
         winRate: true,
+        adminRemark: true,
       },
     });
 
@@ -261,6 +263,7 @@ export class UsersService {
         totalProfitLoss: true,
         totalTrades: true,
         winRate: true,
+        adminRemark: true,
       },
     });
 
@@ -302,6 +305,7 @@ export class UsersService {
         totalProfitLoss: true,
         totalTrades: true,
         winRate: true,
+        adminRemark: true,
       },
     });
 
@@ -343,6 +347,7 @@ export class UsersService {
         totalProfitLoss: true,
         totalTrades: true,
         winRate: true,
+        adminRemark: true,
       },
     });
 
@@ -384,6 +389,7 @@ export class UsersService {
         totalProfitLoss: true,
         totalTrades: true,
         winRate: true,
+        adminRemark: true,
       },
     });
 
@@ -453,6 +459,7 @@ export class UsersService {
         totalProfitLoss: true,
         totalTrades: true,
         winRate: true,
+        adminRemark: true,
       },
     });
 
@@ -514,6 +521,7 @@ export class UsersService {
         totalProfitLoss: true,
         totalTrades: true,
         winRate: true,
+        adminRemark: true,
       },
     });
 
@@ -555,6 +563,7 @@ export class UsersService {
         totalProfitLoss: true,
         totalTrades: true,
         winRate: true,
+        adminRemark: true,
       },
     });
 
