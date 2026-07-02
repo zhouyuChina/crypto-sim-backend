@@ -1,8 +1,9 @@
 -- DropIndex
-DROP INDEX "DepositAddress_enabled_riskStatus_idx";
+DROP INDEX IF EXISTS "DepositAddress_enabled_riskStatus_idx";
 
 -- AlterTable
-ALTER TABLE "User" ADD COLUMN     "adminRemark" TEXT,
-ADD COLUMN     "documentType" TEXT,
-ADD COLUMN     "passportPhoto" TEXT,
-ADD COLUMN     "tradeDurations" JSONB;
+ALTER TABLE "User"
+ADD COLUMN IF NOT EXISTS "adminRemark" TEXT,
+ADD COLUMN IF NOT EXISTS "documentType" TEXT,
+ADD COLUMN IF NOT EXISTS "passportPhoto" TEXT,
+ADD COLUMN IF NOT EXISTS "tradeDurations" JSONB;
