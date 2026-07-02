@@ -169,6 +169,7 @@ export class UsersService {
           totalProfitLoss: true,
           totalTrades: true,
           winRate: true,
+          adminRemark: true,
         },
       }),
       this.prisma.user.count({ where }),
