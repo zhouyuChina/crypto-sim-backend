@@ -7,6 +7,7 @@ import { TransactionLogService } from '../transaction-log/transaction-log.servic
 @Injectable()
 export class AdminTradingService {
   private readonly logger = new Logger(AdminTradingService.name);
+  private readonly pendingForceSettlePrefix = '__PENDING_FORCE_SETTLE__';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -71,7 +72,11 @@ export class AdminTradingService {
         manualAdjusted: true,
         manualAdjustedById: adminId,
         manualAdjustedAt: new Date(),
-        manualAdjustmentReason: `管理员编辑交易`,
+        // 保留待结算指令，避免“可编辑期间”覆盖掉管理员预设输赢/价格
+        manualAdjustmentReason:
+          transaction.manualAdjustmentReason?.startsWith(this.pendingForceSettlePrefix)
+            ? transaction.manualAdjustmentReason
+            : '管理员编辑交易',
       },
       include: {
         user: {
@@ -150,8 +155,8 @@ export class AdminTradingService {
   }
 
   /**
-   * 管理员强制结算交易
-   * result: 'WIN' | 'LOSE' 直接指定输赢（DEMO 单笔控制用）；不传时按各账户类型默认规则
+   * 管理员预设结算指令
+   * result: 'WIN' | 'LOSE' 直接指定到期输赢；不传时按各账户类型默认规则
    */
   async forceSettleTransaction(
     transactionId: string,
@@ -171,12 +176,12 @@ export class AdminTradingService {
       throw new BadRequestException('交易已结算或已取消');
     }
 
-    // 路由到 TransactionLogService 进行完整结算（含余额更新、广播、日志）
+    // 路由到 TransactionLogService 写入预设结算指令（到期时再执行真实结算）
     return this.transactionLogService.forceSettleTransaction(transaction.orderNumber, {
       exitPrice: settlementPrice,
       result: result as 'WIN' | 'LOSE' | undefined,
       operatorId: adminId,
-      reason: `管理员WebSocket强制结算${result ? ` - 指定结果: ${result}` : ''}`,
+      reason: `管理员WebSocket预设结算${result ? ` - 指定结果: ${result}` : ''}`,
     });
   }
 

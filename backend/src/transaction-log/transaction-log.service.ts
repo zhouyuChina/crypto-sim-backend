@@ -37,9 +37,44 @@ interface SettleTransactionOptions {
   manual?: boolean;
 }
 
+interface PendingForceSettleConfig {
+  result?: ForcedResult;
+  exitPrice?: number;
+  reason?: string;
+  operatorId: string;
+  operatorName?: string;
+  markedAt: string;
+}
+
+const PENDING_FORCE_SETTLE_PREFIX = '__PENDING_FORCE_SETTLE__';
+
 @Injectable()
 export class TransactionLogService {
   private readonly logger = new Logger(TransactionLogService.name);
+
+  private buildPendingForceSettleReason(config: PendingForceSettleConfig): string {
+    return `${PENDING_FORCE_SETTLE_PREFIX}${JSON.stringify(config)}`;
+  }
+
+  private parsePendingForceSettleReason(
+    reason?: string | null,
+  ): PendingForceSettleConfig | null {
+    if (!reason || !reason.startsWith(PENDING_FORCE_SETTLE_PREFIX)) {
+      return null;
+    }
+
+    const payload = reason.slice(PENDING_FORCE_SETTLE_PREFIX.length);
+    try {
+      const parsed = JSON.parse(payload) as PendingForceSettleConfig;
+      if (!parsed || !parsed.operatorId) {
+        return null;
+      }
+      return parsed;
+    } catch {
+      this.logger.warn(`解析待结算配置失败: ${reason}`);
+      return null;
+    }
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -503,10 +538,15 @@ export class TransactionLogService {
       throw new BadRequestException(`订单 ${orderNumber} 已被取消，无法结算`);
     }
 
+    const pendingForceSettle = this.parsePendingForceSettleReason(
+      transaction.manualAdjustmentReason,
+    );
     const wasSettled = transaction.status === TransactionStatus.SETTLED;
 
     const resolvedExitPrice =
-      exitPrice !== undefined
+      pendingForceSettle?.exitPrice !== undefined
+        ? pendingForceSettle.exitPrice
+        : exitPrice !== undefined
         ? exitPrice
         : await this.getCurrentPrice(transaction.assetType);
 
@@ -516,8 +556,9 @@ export class TransactionLogService {
     // 3) DEMO 且无大盘：按实际涨跌计算
     // 4) REAL：默认判输
     let isWin: boolean;
-    if (options.forcedResult) {
-      isWin = options.forcedResult === 'WIN';
+    const effectiveForcedResult = options.forcedResult ?? pendingForceSettle?.result;
+    if (effectiveForcedResult) {
+      isWin = effectiveForcedResult === 'WIN';
       this.logger.log(`交易 ${orderNumber} 强制结算，结果: ${isWin ? '赢' : '输'}`);
     } else if (transaction.accountType === AccountType.DEMO) {
       if (transaction.marketSessionId) {
@@ -545,6 +586,20 @@ export class TransactionLogService {
       ? investAmount * returnRate
       : -investAmount;
 
+    const pendingExecutionMetadata = pendingForceSettle
+      ? {
+          manualAdjusted: true,
+          manualAdjustedById:
+            pendingForceSettle.operatorId ?? transaction.manualAdjustedById,
+          manualAdjustedByName:
+            pendingForceSettle.operatorName ?? transaction.manualAdjustedByName,
+          manualAdjustmentReason:
+            pendingForceSettle.reason ||
+            `管理员预设结算${pendingForceSettle.result ? `: ${pendingForceSettle.result}` : ''}`,
+          manualAdjustedAt: transaction.manualAdjustedAt ?? new Date(),
+        }
+      : {};
+
     const manualMetadata = options.manual
       ? {
           manualAdjusted: true,
@@ -563,6 +618,7 @@ export class TransactionLogService {
         actualReturn,
         status: TransactionStatus.SETTLED,
         settledAt: new Date(),
+        ...pendingExecutionMetadata,
         ...manualMetadata,
       },
       include: {
@@ -800,7 +856,8 @@ export class TransactionLogService {
   }
 
   /**
-   * 后台强制结算（可用于客服人工干预）
+   * 后台预设强制结算（可用于客服人工干预）
+   * 仅记录预设输赢/结算价，不立即结束订单；到期结算时生效。
    */
   async forceSettleTransaction(
     orderNumber: string,
@@ -812,13 +869,57 @@ export class TransactionLogService {
       operatorName?: string;
     },
   ): Promise<TransactionResponseDto> {
-    return this.settleTransactionBySystem(orderNumber, params.exitPrice, {
-      forcedResult: params.result,
+    const transaction = await this.prisma.transactionLog.findUnique({
+      where: { orderNumber },
+      include: {
+        marketSession: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(`订单 ${orderNumber} 不存在`);
+    }
+
+    if (transaction.status === TransactionStatus.CANCELED) {
+      throw new BadRequestException(`订单 ${orderNumber} 已被取消，无法强制控制`);
+    }
+
+    if (transaction.status === TransactionStatus.SETTLED) {
+      throw new BadRequestException(`订单 ${orderNumber} 已结算，无法强制控制`);
+    }
+
+    const pendingConfig: PendingForceSettleConfig = {
+      result: params.result,
+      exitPrice: params.exitPrice,
       reason: params.reason,
       operatorId: params.operatorId,
       operatorName: params.operatorName,
-      manual: true,
+      markedAt: new Date().toISOString(),
+    };
+
+    const updated = await this.prisma.transactionLog.update({
+      where: { orderNumber },
+      data: {
+        manualAdjusted: true,
+        manualAdjustedById: params.operatorId,
+        manualAdjustedByName: params.operatorName,
+        manualAdjustedAt: new Date(),
+        manualAdjustmentReason: this.buildPendingForceSettleReason(pendingConfig),
+      },
+      include: {
+        marketSession: {
+          select: { name: true },
+        },
+      },
     });
+
+    this.logger.log(
+      `交易 ${orderNumber} 已写入预设结算指令: result=${params.result ?? 'AUTO'}, exitPrice=${params.exitPrice ?? 'AUTO'}`,
+    );
+
+    return this.mapToResponseDto(updated);
   }
 
   /**

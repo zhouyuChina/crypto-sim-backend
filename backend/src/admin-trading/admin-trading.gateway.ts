@@ -192,16 +192,12 @@ export class AdminTradingGateway implements OnGatewayConnection, OnGatewayDiscon
   }
 
   /**
-   * 管理员强制结算
-   * trading:force-settle
-   */
-  /**
-   * 管理员强制结算
+   * 管理员预设结算指令
    * trading:force-settle
    *
-   * payload.result: 'WIN' | 'LOSE' —— 直接指定输赢（DEMO 单笔控制输用）
-   * payload.settlementPrice: 可选结算价（REAL 盘口用）
-   * 不传 result 时按各账户类型默认规则（DEMO+大盘 → 赢；REAL → 输）
+   * payload.result: 'WIN' | 'LOSE' —— 指定到期结算结果
+   * payload.settlementPrice: 可选到期结算价
+   * 注意：此操作不会立即结束订单，不会推送状态变更为 SETTLED。
    */
   @SubscribeMessage('trading:force-settle')
   async handleForceSettle(
@@ -217,24 +213,21 @@ export class AdminTradingGateway implements OnGatewayConnection, OnGatewayDiscon
     try {
       const { transactionId, adminId, settlementPrice, result } = payload;
 
-      const settledTransaction = await this.adminTradingService.forceSettleTransaction(
+      const markedTransaction = await this.adminTradingService.forceSettleTransaction(
         transactionId,
         adminId,
         settlementPrice,
         result,
       );
 
-      // 广播更新（settleTransactionBySystem 已发 trading:status-changed，这里再发 trading:transaction-updated 供前端刷新列表）
-      this.broadcastTransactionUpdate(settledTransaction, 'force-settled');
-
       this.logger.log(
-        `交易 ${transactionId} 已被管理员 ${adminId} 强制结算${result ? `，指定结果: ${result}` : ''}`,
+        `交易 ${transactionId} 已写入预设结算指令，管理员: ${adminId}${result ? `，指定结果: ${result}` : ''}`,
       );
 
-      return { success: true, transaction: settledTransaction };
+      return { success: true, transaction: markedTransaction };
     } catch (error: any) {
-      this.logger.error(`强制结算失败: ${error.message}`, error.stack);
-      client.emit('trading:error', { message: '强制结算失败' });
+      this.logger.error(`预设结算指令失败: ${error.message}`, error.stack);
+      client.emit('trading:error', { message: '预设结算指令失败' });
       return { success: false, error: error.message };
     }
   }
